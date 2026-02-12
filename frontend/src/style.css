@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+  --bg: #0b0f19;
+  --surface: #141b2d;
+  --surface-strong: #1b2438;
+  --border: rgba(148, 163, 184, 0.2);
+  --text: #f1f5f9;
+  --text-muted: #94a3b8;
+  --accent: #2dd4bf;
+  --accent-contrast: #0b1220;
+  --radius-md: 12px;
+  --radius-xl: 20px;
+  --shadow-card: 0 24px 60px rgba(6, 9, 18, 0.55);
+  --shadow-accent: 0 12px 30px rgba(45, 212, 191, 0.25);
+  --shadow-accent-strong: 0 18px 40px rgba(45, 212, 191, 0.35);
+  --scroll-thumb: rgba(45, 212, 191, 0.45);
+  --scroll-thumb-hover: rgba(45, 212, 191, 0.75);
+  --scroll-track: rgba(148, 163, 184, 0.08);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --surface-strong: #eef2f7;
+  --border: rgba(148, 163, 184, 0.35);
+  --text: #0f172a;
+  --text-muted: #475569;
+  --accent: #2dd4bf;
+  --accent-contrast: #0b1220;
+  --shadow-card: 0 20px 50px rgba(15, 23, 42, 0.12);
+  --shadow-accent: 0 12px 30px rgba(45, 212, 191, 0.18);
+  --shadow-accent-strong: 0 18px 40px rgba(45, 212, 191, 0.25);
+  --scroll-thumb: rgba(13, 148, 136, 0.45);
+  --scroll-thumb-hover: rgba(13, 148, 136, 0.72);
+  --scroll-track: rgba(15, 23, 42, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scrollbar-gutter: stable both-edges;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  background: radial-gradient(1200px 600px at 15% 10%, rgba(45, 212, 191, 0.12), transparent 60%),
+    radial-gradient(900px 500px at 85% 0%, rgba(56, 189, 248, 0.15), transparent 55%),
+    linear-gradient(160deg, #0b0f19 0%, #0e1627 45%, #0b0f19 100%);
+  color: var(--text);
+  overflow: hidden;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--scroll-thumb), rgba(20, 184, 166, 0.42));
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--scroll-thumb-hover), rgba(20, 184, 166, 0.7));
+}
+
+.scroll-gutter-stable {
+  scrollbar-gutter: stable both-edges;
+}
+
+:root[data-theme="light"] body {
+  background: radial-gradient(1200px 600px at 15% 10%, rgba(45, 212, 191, 0.18), transparent 60%),
+    radial-gradient(900px 500px at 85% 0%, rgba(94, 234, 212, 0.2), transparent 55%),
+    linear-gradient(160deg, #f5f7fb 0%, #eef2f7 55%, #f5f7fb 100%);
+}
+
+
+@keyframes pageFade {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cardRise {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.page-fade {
+  animation: pageFade 600ms ease-out;
+}
+
+.card-animate {
+  animation: cardRise 650ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-fade,
+  .card-animate {
+    animation: none;
+  }
+}

@@ -1,0 +1,14 @@
+﻿{
+  "name": "lms",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "npm --workspace backend run dev & npm --workspace frontend run dev",
+    "build": "npm --workspace backend run build && npm --workspace frontend run build",
+    "lint": "npm --workspace frontend run lint && npm --workspace backend run lint",
+    "typecheck": "npm --workspace frontend run typecheck && npm --workspace backend run typecheck"
+  }
+}
