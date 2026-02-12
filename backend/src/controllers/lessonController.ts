@@ -43,7 +43,7 @@ export const getCourseLessons = asyncHandler(async (req: AuthRequest, res: Respo
     }
   }
   if (req.user.role === Role.INSTRUCTOR && course.createdById !== req.user.id) {
-    throw new HttpError(403, "Forbidden");
+    throw new HttpError(403, "Use Instructor workspace to manage your own courses");
   }
 
   const lessons = await listLessonsByCourseWithProgress(courseId, req.user.id);

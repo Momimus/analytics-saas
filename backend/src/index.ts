@@ -19,10 +19,12 @@ const app = express();
 const PORT = Number(process.env.PORT ?? 4000);
 const JWT_SECRET = process.env.JWT_SECRET ?? "";
 const IS_PROD = process.env.NODE_ENV === "production";
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? "http://localhost:5173";
-const CSRF_ALLOWED_ORIGINS = (
+const IS_TEST = process.env.NODE_ENV === "test";
+const ALLOWED_ORIGINS = (
+  process.env.ALLOWED_ORIGINS ??
   process.env.CSRF_ALLOWED_ORIGINS ??
-  FRONTEND_ORIGIN
+  process.env.FRONTEND_ORIGIN ??
+  "http://localhost:5173,http://127.0.0.1:5173"
 )
   .split(",")
   .map((value) => value.trim())
@@ -31,7 +33,12 @@ const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? "auth_token";
 const AUTH_COOKIE_SAMESITE = process.env.AUTH_COOKIE_SAMESITE ?? "lax";
 
 if (!JWT_SECRET) {
-  console.warn("JWT_SECRET is not set. Auth endpoints will fail.");
+  if (IS_PROD) {
+    throw new Error("JWT_SECRET must be set in production");
+  }
+  if (!IS_TEST) {
+    console.warn("JWT_SECRET is not set. Dev mode is running with insecure auth secret behavior.");
+  }
 }
 
 if (!IS_PROD && (prisma as unknown as Record<string, unknown>).passwordResetToken === undefined) {
@@ -40,7 +47,16 @@ if (!IS_PROD && (prisma as unknown as Record<string, unknown>).passwordResetToke
 
 app.use(
   cors({
-    origin: FRONTEND_ORIGIN,
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void
+    ) => {
+      if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
+    },
     credentials: true,
   })
 );
@@ -51,7 +67,7 @@ app.use((req, res, next) => {
     return next();
   }
   const origin = req.headers.origin;
-  if (!origin || !CSRF_ALLOWED_ORIGINS.includes(origin)) {
+  if (!origin || !ALLOWED_ORIGINS.includes(origin)) {
     return res.status(403).json({ error: "Invalid request origin" });
   }
   return next();

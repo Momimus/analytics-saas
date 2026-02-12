@@ -44,7 +44,10 @@ export async function getMyCourses(userId: string) {
       enrollments: { some: { userId, status: EnrollmentStatus.ACTIVE } },
     },
     orderBy: { createdAt: "desc" },
-    include: { _count: { select: { lessons: true } } },
+    include: {
+      _count: { select: { lessons: true } },
+      createdBy: { select: { fullName: true, email: true } },
+    },
   });
 
   return courses.map((course) => ({
@@ -53,6 +56,10 @@ export async function getMyCourses(userId: string) {
     description: course.description,
     createdAt: course.createdAt,
     lessonsCount: course._count.lessons,
+    createdBy: {
+      fullName: course.createdBy?.fullName ?? null,
+      email: course.createdBy?.email ?? null,
+    },
   }));
 }
 

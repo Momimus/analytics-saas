@@ -4,7 +4,10 @@ export async function listCourses() {
   const courses = await prisma.course.findMany({
     where: { isPublished: true, archivedAt: null },
     orderBy: { createdAt: "desc" },
-    include: { _count: { select: { lessons: true } } },
+    include: {
+      _count: { select: { lessons: true } },
+      createdBy: { select: { fullName: true, email: true } },
+    },
   });
 
   return courses.map((course) => ({
@@ -18,11 +21,46 @@ export async function listCourses() {
     createdAt: course.createdAt,
     updatedAt: course.updatedAt,
     lessonsCount: course._count.lessons,
+    createdBy: {
+      fullName: course.createdBy?.fullName ?? null,
+      email: course.createdBy?.email ?? null,
+    },
   }));
 }
 
 export async function getCourseById(id: string) {
-  return prisma.course.findFirst({ where: { id, isPublished: true, archivedAt: null } });
+  return prisma.course.findFirst({
+    where: { id, isPublished: true, archivedAt: null },
+    include: { createdBy: { select: { fullName: true, email: true } } },
+  });
+}
+
+export async function getPublicCourseById(id: string) {
+  const course = await prisma.course.findFirst({
+    where: { id, isPublished: true, archivedAt: null },
+    include: {
+      _count: { select: { lessons: true } },
+      createdBy: { select: { fullName: true, email: true } },
+    },
+  });
+  if (!course) {
+    return null;
+  }
+
+  return {
+    id: course.id,
+    title: course.title,
+    description: course.description,
+    imageUrl: course.imageUrl,
+    isPublished: course.isPublished,
+    createdAt: course.createdAt,
+    updatedAt: course.updatedAt,
+    lessonsCount: course._count.lessons,
+    createdBy: {
+      fullName: course.createdBy?.fullName ?? null,
+      email: course.createdBy?.email ?? null,
+    },
+  };
 }
 
 export async function getCourseByIdUnrestricted(id: string) {

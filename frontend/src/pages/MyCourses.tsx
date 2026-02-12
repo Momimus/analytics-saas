@@ -4,12 +4,17 @@ import Card from "../components/Card";
 import Button from "../components/Button";
 import { useAuth } from "../context/auth";
 import { apiFetch } from "../lib/api";
+import { formatInstructorName } from "../lib/instructor";
 
 type Course = {
   id: string;
   title: string;
   description: string | null;
   lessonsCount?: number;
+  createdBy?: {
+    fullName?: string | null;
+    email?: string | null;
+  };
 };
 
 type ProgressSummary = {
@@ -80,10 +85,30 @@ export default function MyCoursesPage() {
           {courses.map((course) => (
             <div key={course.id} className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4">
               <div className="grid gap-2">
-                <p className="text-base font-semibold text-[var(--text)]">{course.title}</p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-base font-semibold text-[var(--text)]">{course.title}</p>
+                  {(() => {
+                    const item = progressByCourse[course.id];
+                    const total = item?.total ?? course.lessonsCount ?? 0;
+                    const completed = item?.completed ?? 0;
+                    const isCompleted = total > 0 && completed >= total;
+                    return (
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-medium ${
+                          isCompleted
+                            ? "bg-emerald-500/20 text-emerald-300"
+                            : "bg-rose-500/20 text-rose-300"
+                        }`}
+                      >
+                        {isCompleted ? "Completed" : "Incomplete"}
+                      </span>
+                    );
+                  })()}
+                </div>
                 {course.description && (
                   <p className="text-sm text-[var(--text-muted)]">{course.description}</p>
                 )}
+                <p className="text-xs text-[var(--text-muted)]">Instructor: {formatInstructorName(course.createdBy)}</p>
                 <p className="text-xs text-[var(--text-muted)]">Lessons: {course.lessonsCount ?? 0}</p>
                 <div className="grid gap-1">
                   <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">

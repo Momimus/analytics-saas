@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { Role } from "@prisma/client";
+import prisma from "../lib/prisma.js";
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "";
 const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? "auth_token";
@@ -29,7 +30,7 @@ function getCookieValue(cookieHeader: string | undefined, name: string): string 
   return null;
 }
 
-export function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
+export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
   const cookieToken = getCookieValue(req.headers.cookie, AUTH_COOKIE_NAME);
   const header = req.headers.authorization ?? "";
   const headerToken = header.startsWith("Bearer ") ? header.slice(7) : null;
@@ -41,7 +42,14 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
 
   try {
     const payload = jwt.verify(token, JWT_SECRET) as AuthPayload;
-    req.user = { id: payload.sub, role: payload.role };
+    const user = await prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { id: true, role: true },
+    });
+    if (!user) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    req.user = { id: user.id, role: user.role };
     return next();
   } catch (error) {
     return res.status(401).json({ error: "Invalid token" });

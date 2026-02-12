@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Card from "../components/Card";
 import Button from "../components/Button";
+import { useAuth } from "../context/auth";
 import { apiFetch } from "../lib/api";
 
 type Course = {
@@ -17,6 +18,7 @@ type Lesson = {
 };
 
 export default function CourseDetailPage() {
+  const { user } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
   const [course, setCourse] = useState<Course | null>(null);
@@ -25,7 +27,7 @@ export default function CourseDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || user?.role === "INSTRUCTOR" || user?.role === "ADMIN") return;
     setLoading(true);
     Promise.all([
       apiFetch<{ course: Course }>(`/courses/${id}`),
@@ -36,9 +38,33 @@ export default function CourseDetailPage() {
         setLessons(lessonsResult.lessons ?? []);
         setError(null);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load course"))
+      .catch((err) => {
+        const message = err instanceof Error ? err.message : "Failed to load course";
+        if (message === "Forbidden" || message === "Access requires approved enrollment") {
+          setError("Access blocked. Open this course from My Courses after enrollment is approved.");
+          return;
+        }
+        setError(message);
+      })
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, user?.role]);
+
+  if (user?.role === "INSTRUCTOR" || user?.role === "ADMIN") {
+    return (
+      <Card title="Course View" subtitle="This page is student-only." className="w-full">
+        <div className="grid gap-3">
+          <p className="text-sm text-[var(--text-muted)]">
+            Open courses from Instructor workspace to edit lessons, publish state, and requests.
+          </p>
+          <div>
+            <Button type="button" variant="ghost" onClick={() => navigate(id ? `/instructor/courses/${id}` : "/instructor")}>
+              Go to Instructor workspace
+            </Button>
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card title={course?.title ?? "Course"} subtitle={course?.description ?? ""} className="w-full">

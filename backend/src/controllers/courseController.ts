@@ -5,7 +5,12 @@ import { HttpError, assertNonEmptyString } from "../utils/httpError.js";
 import prisma from "../lib/prisma.js";
 import { assertDirectImageUrl } from "../utils/url.js";
 import type { AuthRequest } from "../middleware/auth.js";
-import { createCourse, getCourseById, listCourses } from "../services/courseService.js";
+import {
+  createCourse,
+  getCourseById,
+  getPublicCourseById,
+  listCourses,
+} from "../services/courseService.js";
 
 export const getCourses = asyncHandler(async (_req: Request, res: Response) => {
   const courses = await listCourses();
@@ -21,7 +26,7 @@ export const getCourse = asyncHandler(async (req: AuthRequest, res: Response) =>
   }
 
   if (!req.user) {
-    return res.json({ course });
+    throw new HttpError(401, "Unauthorized");
   }
 
   if (req.user.role === Role.STUDENT) {
@@ -39,9 +44,18 @@ export const getCourse = asyncHandler(async (req: AuthRequest, res: Response) =>
     }
   }
   if (req.user.role === Role.INSTRUCTOR) {
-    if (course.createdById !== req.user.id) {
-      throw new HttpError(403, "Forbidden");
-    }
+    throw new HttpError(403, "Use Instructor workspace to manage your own courses");
+  }
+
+  res.json({ course });
+});
+
+export const getPublicCourse = asyncHandler(async (req: Request, res: Response) => {
+  const id = assertNonEmptyString(req.params.id, "Course id is required");
+  const course = await getPublicCourseById(id);
+
+  if (!course) {
+    throw new HttpError(404, "Course not found");
   }
 
   res.json({ course });

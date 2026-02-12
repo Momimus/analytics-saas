@@ -15,7 +15,7 @@ export default function CourseThumbnail({ title, imageUrl, className }: CourseTh
   if (!showImage) {
     return (
       <div
-        className={`grid place-items-center rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)]/70 text-xs text-[var(--text-muted)] ${className ?? ""}`}
+        className={`grid aspect-square w-32 shrink-0 place-items-center overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)]/70 text-xs text-[var(--text-muted)] ${className ?? ""}`}
       >
         <span className="px-3 text-center">No thumbnail</span>
       </div>
@@ -28,7 +28,7 @@ export default function CourseThumbnail({ title, imageUrl, className }: CourseTh
       alt={`${title} thumbnail`}
       loading="lazy"
       onError={() => setLoadFailed(true)}
-      className={`rounded-[var(--radius-md)] border border-[color:var(--border)] object-cover ${className ?? ""}`}
+      className={`aspect-square w-32 shrink-0 overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--border)] object-cover ${className ?? ""}`}
     />
   );
 }

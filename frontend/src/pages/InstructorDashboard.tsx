@@ -4,6 +4,7 @@ import Card from "../components/Card";
 import Button from "../components/Button";
 import CourseThumbnail from "../components/CourseThumbnail";
 import { apiFetch } from "../lib/api";
+import { formatInstructorName } from "../lib/instructor";
 
 type InstructorCourse = {
   id: string;
@@ -14,6 +15,10 @@ type InstructorCourse = {
   updatedAt: string;
   lessonsCount: number;
   enrollmentsCount: number;
+  createdBy?: {
+    fullName?: string | null;
+    email?: string | null;
+  };
 };
 
 export default function InstructorDashboardPage() {
@@ -110,11 +115,12 @@ export default function InstructorDashboardPage() {
                   className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="grid gap-3 sm:grid-cols-[140px_1fr]">
-                      <CourseThumbnail title={course.title} imageUrl={course.imageUrl} className="h-24 w-full sm:w-[140px]" />
+                    <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
+                      <CourseThumbnail title={course.title} imageUrl={course.imageUrl} className="w-32 sm:w-36" />
                       <div className="grid gap-1">
                         <p className="text-base font-semibold text-[var(--text)]">{course.title}</p>
                         {course.description && <p className="text-sm text-[var(--text-muted)]">{course.description}</p>}
+                        <p className="text-xs text-[var(--text-muted)]">Instructor: {formatInstructorName(course.createdBy)}</p>
                         <div className="flex flex-wrap gap-2 text-xs text-[var(--text-muted)]">
                           <span
                             className={`rounded-full px-2 py-1 ${

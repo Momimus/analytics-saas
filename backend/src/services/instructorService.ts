@@ -29,6 +29,7 @@ export async function listInstructorCourses(actor: Actor) {
     orderBy: { updatedAt: "desc" },
     include: {
       _count: { select: { lessons: true, enrollments: true } },
+      createdBy: { select: { fullName: true, email: true } },
     },
   });
 
@@ -59,6 +60,10 @@ export async function listInstructorCourses(actor: Actor) {
     updatedAt: course.updatedAt,
     lessonsCount: course._count.lessons,
     enrollmentsCount: activeEnrollmentsByCourse.get(course.id) ?? 0,
+    createdBy: {
+      fullName: course.createdBy?.fullName ?? null,
+      email: course.createdBy?.email ?? null,
+    },
   }));
 }
 

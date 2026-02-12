@@ -6,6 +6,7 @@ import Button from "../components/Button";
 import CourseThumbnail from "../components/CourseThumbnail";
 import { useAuth } from "../context/auth";
 import { apiFetch } from "../lib/api";
+import { formatInstructorName } from "../lib/instructor";
 
 type Course = {
   id: string;
@@ -13,6 +14,10 @@ type Course = {
   description: string | null;
   imageUrl?: string | null;
   lessonsCount?: number;
+  createdBy?: {
+    fullName?: string | null;
+    email?: string | null;
+  };
 };
 
 type EnrollmentStatus = "REQUESTED" | "ACTIVE" | "REVOKED";
@@ -44,6 +49,7 @@ export default function CoursesPage() {
 
   const activeFilterLabel = filterOptions.find((option) => option.value === filter)?.label ?? "All";
   const isStudent = user?.role === "STUDENT";
+  const isInstructorRole = user?.role === "INSTRUCTOR" || user?.role === "ADMIN";
 
   useEffect(() => {
     let active = true;
@@ -271,29 +277,29 @@ export default function CoursesPage() {
           )}
           {visibleCourses.map((course) => {
             const enrollmentStatus = enrollmentByCourseId[course.id];
-            const canOpen =
-              user?.role === "ADMIN" || (isStudent && enrollmentStatus === "ACTIVE");
+            const canOpen = isStudent && enrollmentStatus === "ACTIVE";
             return (
               <div
                 key={course.id}
                 className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4"
               >
-                <div className="grid gap-3 sm:grid-cols-[140px_1fr]">
-                  <CourseThumbnail title={course.title} imageUrl={course.imageUrl} className="h-24 w-full sm:w-[140px]" />
+                <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
+                  <CourseThumbnail title={course.title} imageUrl={course.imageUrl} className="w-32 sm:w-36" />
                   <div className="grid gap-1">
                     <p className="text-base font-semibold text-[var(--text)]">{course.title}</p>
                     {course.description && (
                       <p className="text-sm text-[var(--text-muted)]">{course.description}</p>
                     )}
+                    <p className="text-xs text-[var(--text-muted)]">Instructor: {formatInstructorName(course.createdBy)}</p>
                     <p className="text-xs text-[var(--text-muted)]">Lessons: {course.lessonsCount ?? 0}</p>
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button type="button" variant="ghost" disabled={!canOpen} onClick={() => navigate(`/courses/${course.id}`)}>
-                    Open
-                  </Button>
                   {isStudent && (
                     <>
+                      <Button type="button" variant="ghost" disabled={!canOpen} onClick={() => navigate(`/courses/${course.id}`)}>
+                        Open
+                      </Button>
                       <Button
                         type="button"
                         disabled={enrollmentStatus === "REQUESTED" || enrollmentStatus === "ACTIVE"}
@@ -312,10 +318,19 @@ export default function CoursesPage() {
                       )}
                     </>
                   )}
-                  {user?.role === "INSTRUCTOR" && (
-                    <p className="self-center text-xs text-[var(--text-muted)]">
-                      Instructors manage courses from the instructor workspace.
-                    </p>
+                  {isInstructorRole && (
+                    <>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => navigate(`/instructor/courses/${course.id}`)}
+                      >
+                        Manage
+                      </Button>
+                      <p className="self-center text-xs text-[var(--text-muted)]">
+                        Manage courses from the instructor workspace.
+                      </p>
+                    </>
                   )}
                 </div>
               </div>
