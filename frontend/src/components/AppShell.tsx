@@ -1,7 +1,15 @@
 import type { PropsWithChildren } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth";
+import { apiFetch } from "../lib/api";
+import {
+  hasUnseenPendingRequests,
+  type PendingAccessRequestsResponse,
+  REQUESTS_SEEN_EVENT,
+} from "../lib/pendingRequests";
+import Badge from "./ui/Badge";
+import NotificationDot from "./ui/NotificationDot";
 
 export default function AppShell({ children }: PropsWithChildren) {
   const location = useLocation();
@@ -9,8 +17,14 @@ export default function AppShell({ children }: PropsWithChildren) {
   const { user, logout } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [pendingCount, setPendingCount] = useState(0);
+  const [latestPendingAt, setLatestPendingAt] = useState<string | null>(null);
+  const [showRequestsBadge, setShowRequestsBadge] = useState(false);
+  const [pulseRequestsDot, setPulseRequestsDot] = useState(false);
+  const previousPendingCountRef = useRef(0);
 
   const isLoggedIn = Boolean(user);
+  const isInstructorRole = user?.role === "INSTRUCTOR" || user?.role === "ADMIN";
 
   const navItems = useMemo(
     () => {
@@ -21,7 +35,7 @@ export default function AppShell({ children }: PropsWithChildren) {
         ];
       }
 
-      const items = [{ to: "/dashboard", label: "Dashboard" }, { to: "/courses", label: "Courses" }];
+      const items = [{ to: "/dashboard", label: "Home" }, { to: "/courses", label: "Courses" }];
 
       if (user?.role === "STUDENT") {
         items.push({ to: "/my-courses", label: "My Courses" });
@@ -31,12 +45,32 @@ export default function AppShell({ children }: PropsWithChildren) {
 
       if (user?.role === "INSTRUCTOR" || user?.role === "ADMIN") {
         items.splice(1, 0, { to: "/instructor", label: "Instructor" });
+        items.splice(2, 0, { to: "/instructor/requests", label: "Requests" });
       }
 
       return items;
     },
     [isLoggedIn, user?.role]
   );
+
+  const refreshPendingRequests = useCallback(async () => {
+    if (!isInstructorRole) {
+      setPendingCount(0);
+      setLatestPendingAt(null);
+      setShowRequestsBadge(false);
+      return;
+    }
+    try {
+      const result = await apiFetch<PendingAccessRequestsResponse>("/instructor/requests?limit=1");
+      setPendingCount(result.totalPending);
+      setLatestPendingAt(result.latestPendingAt);
+      setShowRequestsBadge(result.totalPending > 0 && hasUnseenPendingRequests(result.latestPendingAt));
+    } catch {
+      setPendingCount(0);
+      setLatestPendingAt(null);
+      setShowRequestsBadge(false);
+    }
+  }, [isInstructorRole]);
 
   useEffect(() => {
     const stored = localStorage.getItem("lms-theme");
@@ -47,6 +81,48 @@ export default function AppShell({ children }: PropsWithChildren) {
       document.documentElement.dataset.theme = "dark";
     }
   }, []);
+
+  useEffect(() => {
+    void refreshPendingRequests();
+  }, [refreshPendingRequests]);
+
+  useEffect(() => {
+    if (!isInstructorRole) return;
+    const interval = window.setInterval(() => {
+      void refreshPendingRequests();
+    }, 60000);
+    const onFocus = () => {
+      void refreshPendingRequests();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [isInstructorRole, refreshPendingRequests]);
+
+  useEffect(() => {
+    const recomputeBadge = () => {
+      setShowRequestsBadge(pendingCount > 0 && hasUnseenPendingRequests(latestPendingAt));
+    };
+    window.addEventListener(REQUESTS_SEEN_EVENT, recomputeBadge);
+    window.addEventListener("storage", recomputeBadge);
+    return () => {
+      window.removeEventListener(REQUESTS_SEEN_EVENT, recomputeBadge);
+      window.removeEventListener("storage", recomputeBadge);
+    };
+  }, [pendingCount, latestPendingAt]);
+
+  useEffect(() => {
+    const previous = previousPendingCountRef.current;
+    if (pendingCount > previous) {
+      setPulseRequestsDot(true);
+      const timer = window.setTimeout(() => setPulseRequestsDot(false), 900);
+      previousPendingCountRef.current = pendingCount;
+      return () => window.clearTimeout(timer);
+    }
+    previousPendingCountRef.current = pendingCount;
+  }, [pendingCount]);
 
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
@@ -79,7 +155,14 @@ export default function AppShell({ children }: PropsWithChildren) {
   }, [isSidebarOpen]);
 
   const isActivePath = (path: string) => {
-    if (path === "/instructor" && location.pathname.startsWith("/instructor")) return true;
+    if (path === "/instructor/requests" && location.pathname.startsWith("/instructor/requests")) return true;
+    if (path === "/instructor") {
+      return (
+        location.pathname === "/instructor" ||
+        location.pathname === "/instructor/new" ||
+        location.pathname.startsWith("/instructor/courses/")
+      );
+    }
     if (path === "/courses" && location.pathname.startsWith("/courses/")) return true;
     if (path === "/my-courses" && location.pathname.startsWith("/my-courses")) return true;
     if (path === "/profile" && location.pathname.startsWith("/profile")) return true;
@@ -133,6 +216,7 @@ export default function AppShell({ children }: PropsWithChildren) {
               <nav className="flex items-center gap-2 text-sm">
                 {navItems.map((item) => {
                   const isActive = isActivePath(item.to);
+                  const showBadge = isInstructorRole && item.to === "/dashboard" && showRequestsBadge;
                   return (
                     <Link
                       key={item.to}
@@ -143,7 +227,15 @@ export default function AppShell({ children }: PropsWithChildren) {
                           : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[color:var(--surface)]"
                       }`}
                     >
-                      {item.label}
+                      <span className="inline-flex items-center gap-2">
+                        <span>{item.label}</span>
+                        {showBadge && (
+                          <>
+                            <NotificationDot visible pulseOnce={pulseRequestsDot} />
+                            <Badge variant="count" tone="success">{pendingCount > 99 ? "99+" : pendingCount}</Badge>
+                          </>
+                        )}
+                      </span>
                     </Link>
                   );
                 })}
@@ -189,6 +281,7 @@ export default function AppShell({ children }: PropsWithChildren) {
               <div className="grid gap-2">
                 {navItems.map((item) => {
                   const isActive = isActivePath(item.to);
+                  const showBadge = isInstructorRole && item.to === "/dashboard" && showRequestsBadge;
                   return (
                     <Link
                       key={item.to}
@@ -199,7 +292,15 @@ export default function AppShell({ children }: PropsWithChildren) {
                           : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[color:var(--surface-strong)]"
                       }`}
                     >
-                      {item.label}
+                      <span className="inline-flex items-center gap-2">
+                        <span>{item.label}</span>
+                        {showBadge && (
+                          <>
+                            <NotificationDot visible pulseOnce={pulseRequestsDot} />
+                            <Badge variant="count" tone="success">{pendingCount > 99 ? "99+" : pendingCount}</Badge>
+                          </>
+                        )}
+                      </span>
                     </Link>
                   );
                 })}
@@ -236,6 +337,7 @@ export default function AppShell({ children }: PropsWithChildren) {
           <div className="grid gap-2">
             {navItems.map((item) => {
               const isActive = isActivePath(item.to);
+              const showBadge = isInstructorRole && item.to === "/dashboard" && showRequestsBadge;
               return (
                 <Link
                   key={item.to}
@@ -247,7 +349,15 @@ export default function AppShell({ children }: PropsWithChildren) {
                       : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[color:var(--surface-strong)]"
                   }`}
                 >
-                  {item.label}
+                  <span className="inline-flex items-center gap-2">
+                    <span>{item.label}</span>
+                    {showBadge && (
+                      <>
+                        <NotificationDot visible pulseOnce={pulseRequestsDot} />
+                        <Badge variant="count" tone="success">{pendingCount > 99 ? "99+" : pendingCount}</Badge>
+                      </>
+                    )}
+                  </span>
                 </Link>
               );
             })}

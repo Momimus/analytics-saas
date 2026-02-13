@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Card from "../components/Card";
 import Button from "../components/Button";
 import Input from "../components/Input";
+import GlassCard from "../components/ui/GlassCard";
 import { apiFetch } from "../lib/api";
 import { isDirectImageUrl } from "../lib/media";
 
@@ -25,7 +25,7 @@ export default function InstructorCreateCoursePage() {
   const [loading, setLoading] = useState(false);
 
   return (
-    <Card title="Create Course" subtitle="Start a new draft course." className="w-full">
+    <GlassCard title="Create Course" subtitle="Start a new draft course." className="w-full">
       <form
         className="grid gap-4"
         onSubmit={async (event) => {
@@ -112,6 +112,6 @@ export default function InstructorCreateCoursePage() {
           </Button>
         </div>
       </form>
-    </Card>
+    </GlassCard>
   );
 }

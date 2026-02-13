@@ -13,6 +13,7 @@ import InstructorDashboardPage from "./pages/InstructorDashboard";
 import InstructorCreateCoursePage from "./pages/InstructorCreateCourse";
 import InstructorCourseEditorPage from "./pages/InstructorCourseEditor";
 import InstructorStudentsPage from "./pages/InstructorStudents";
+import InstructorRequestsPage from "./pages/InstructorRequests";
 import AppShell from "./components/AppShell";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuth } from "./context/auth";
@@ -174,6 +175,14 @@ export default function App() {
           element={
             <RoleProtectedRoute roles={["INSTRUCTOR", "ADMIN"]}>
               <InstructorStudentsPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/instructor/requests"
+          element={
+            <RoleProtectedRoute roles={["INSTRUCTOR", "ADMIN"]}>
+              <InstructorRequestsPage />
             </RoleProtectedRoute>
           }
         />

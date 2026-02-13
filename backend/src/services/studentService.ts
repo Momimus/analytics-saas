@@ -188,7 +188,6 @@ export async function listMyEnrollmentStatuses(userId: string) {
     select: {
       courseId: true,
       status: true,
-      updatedAt: true,
     },
   });
 }

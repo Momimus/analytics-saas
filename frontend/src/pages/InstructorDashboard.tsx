@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import Card from "../components/Card";
 import Button from "../components/Button";
 import CourseThumbnail from "../components/CourseThumbnail";
+import StatCard from "../components/ui/StatCard";
+import Badge from "../components/ui/Badge";
+import GlassCard from "../components/ui/GlassCard";
 import { apiFetch } from "../lib/api";
 import { formatInstructorName } from "../lib/instructor";
 
@@ -75,29 +77,14 @@ export default function InstructorDashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <div className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">Total Courses</p>
-          <p className="mt-2 text-2xl font-semibold text-[var(--text)]">{overview.totalCourses}</p>
-        </div>
-        <div className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">Published</p>
-          <p className="mt-2 text-2xl font-semibold text-[var(--text)]">{overview.publishedCourses}</p>
-        </div>
-        <div className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">Drafts</p>
-          <p className="mt-2 text-2xl font-semibold text-[var(--text)]">{overview.draftCourses}</p>
-        </div>
-        <div className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">Enrollments</p>
-          <p className="mt-2 text-2xl font-semibold text-[var(--text)]">{overview.totalEnrollments}</p>
-        </div>
-        <div className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">Lessons</p>
-          <p className="mt-2 text-2xl font-semibold text-[var(--text)]">{overview.totalLessons}</p>
-        </div>
+        <StatCard label="Total Courses" value={overview.totalCourses} />
+        <StatCard label="Published" value={overview.publishedCourses} />
+        <StatCard label="Drafts" value={overview.draftCourses} />
+        <StatCard label="Enrollments" value={overview.totalEnrollments} />
+        <StatCard label="Lessons" value={overview.totalLessons} />
       </div>
 
-      <Card title="My Courses" subtitle="Status, lesson count, and enrollments." className="w-full">
+      <GlassCard title="My Courses" subtitle="Status, lesson count, and enrollments." className="w-full">
         {loading ? (
           <p className="text-sm text-[var(--text-muted)]">Loading...</p>
         ) : error ? (
@@ -110,10 +97,7 @@ export default function InstructorDashboardPage() {
               const isRequesting = requestingCourseId === course.id;
               const anyRequestInFlight = requestingCourseId !== null;
               return (
-                <div
-                  key={course.id}
-                  className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4"
-                >
+                <GlassCard key={course.id} className="p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
                       <CourseThumbnail title={course.title} imageUrl={course.imageUrl} className="w-32 sm:w-36" />
@@ -122,15 +106,9 @@ export default function InstructorDashboardPage() {
                         {course.description && <p className="text-sm text-[var(--text-muted)]">{course.description}</p>}
                         <p className="text-xs text-[var(--text-muted)]">Instructor: {formatInstructorName(course.createdBy)}</p>
                         <div className="flex flex-wrap gap-2 text-xs text-[var(--text-muted)]">
-                          <span
-                            className={`rounded-full px-2 py-1 ${
-                              course.isPublished
-                                ? "bg-emerald-500/20 text-emerald-300"
-                                : "bg-amber-500/20 text-amber-300"
-                            }`}
-                          >
+                          <Badge tone={course.isPublished ? "success" : "neutral"}>
                             {course.isPublished ? "Published" : "Draft"}
-                          </span>
+                          </Badge>
                           <span>Lessons: {course.lessonsCount}</span>
                           <span>Enrollments: {course.enrollmentsCount}</span>
                           <span>Updated: {new Date(course.updatedAt).toLocaleString()}</span>
@@ -168,13 +146,13 @@ export default function InstructorDashboardPage() {
                       {isRequesting && <span className="self-center text-xs text-[var(--text-muted)]">Sending...</span>}
                     </div>
                   </div>
-                </div>
+                </GlassCard>
               );
             })}
           </div>
         )}
         {notice && <p className="mt-3 text-sm text-emerald-300">{notice}</p>}
-      </Card>
+      </GlassCard>
 
       {courseToRequestDelete && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4">

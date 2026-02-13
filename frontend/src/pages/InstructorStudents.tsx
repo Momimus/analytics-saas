@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import Card from "../components/Card";
 import Button from "../components/Button";
+import GlassCard from "../components/ui/GlassCard";
 import { apiFetch } from "../lib/api";
 
 type StudentRow = {
@@ -38,7 +38,7 @@ export default function InstructorStudentsPage() {
   }
 
   return (
-    <Card title="Enrolled Students" subtitle="Roster and progress summary for this course." className="w-full">
+    <GlassCard title="Enrolled Students" subtitle="Roster and progress summary for this course." className="w-full">
       <div className="mb-4">
         <Button type="button" variant="ghost" onClick={() => navigate(`/instructor/courses/${id}`)}>
           Back to course editor
@@ -71,6 +71,6 @@ export default function InstructorStudentsPage() {
           ))}
         </div>
       )}
-    </Card>
+    </GlassCard>
   );
 }

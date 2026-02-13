@@ -1,7 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
+import GlassCard from "../components/ui/GlassCard";
+import StatCard from "../components/ui/StatCard";
+import Badge from "../components/ui/Badge";
+import NotificationDot from "../components/ui/NotificationDot";
 import { apiFetch } from "../lib/api";
+import {
+  hasUnseenPendingRequests,
+  markRequestsSeen,
+  type PendingAccessRequest,
+  type PendingAccessRequestsResponse,
+} from "../lib/pendingRequests";
 import { useAuth } from "../context/auth";
 
 type ProgressSummary = {
@@ -28,6 +38,15 @@ export default function DashboardPage() {
   const [instructorCourses, setInstructorCourses] = useState<InstructorCourse[]>([]);
   const [instructorLoading, setInstructorLoading] = useState(false);
   const [instructorError, setInstructorError] = useState<string | null>(null);
+  const [pendingRequests, setPendingRequests] = useState<PendingAccessRequest[]>([]);
+  const [pendingTotal, setPendingTotal] = useState(0);
+  const [latestPendingAt, setLatestPendingAt] = useState<string | null>(null);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [requestsError, setRequestsError] = useState<string | null>(null);
+  const [requestsExpanded, setRequestsExpanded] = useState(false);
+  const [savingRequestId, setSavingRequestId] = useState<string | null>(null);
+  const [pulsePendingDot, setPulsePendingDot] = useState(false);
+  const previousPendingTotalRef = useRef(0);
 
   useEffect(() => {
     if (!user || user.role !== "STUDENT") {
@@ -72,6 +91,41 @@ export default function DashboardPage() {
       .finally(() => setInstructorLoading(false));
   }, [isInstructorRole]);
 
+  useEffect(() => {
+    if (!isInstructorRole) {
+      setPendingRequests([]);
+      setPendingTotal(0);
+      setLatestPendingAt(null);
+      setRequestsLoading(false);
+      setRequestsError(null);
+      setRequestsExpanded(false);
+      return;
+    }
+    setRequestsLoading(true);
+    apiFetch<PendingAccessRequestsResponse>("/instructor/requests?limit=5")
+      .then((result) => {
+        setPendingRequests(result.requests);
+        setPendingTotal(result.totalPending);
+        setLatestPendingAt(result.latestPendingAt);
+        setRequestsError(null);
+      })
+      .catch((err) => {
+        setRequestsError(err instanceof Error ? err.message : "Failed to load pending requests");
+      })
+      .finally(() => setRequestsLoading(false));
+  }, [isInstructorRole]);
+
+  useEffect(() => {
+    const previous = previousPendingTotalRef.current;
+    if (pendingTotal > previous) {
+      setPulsePendingDot(true);
+      const timer = window.setTimeout(() => setPulsePendingDot(false), 900);
+      previousPendingTotalRef.current = pendingTotal;
+      return () => window.clearTimeout(timer);
+    }
+    previousPendingTotalRef.current = pendingTotal;
+  }, [pendingTotal]);
+
   const instructorStats = useMemo(() => {
     const totalCourses = instructorCourses.length;
     const publishedCourses = instructorCourses.filter((course) => course.isPublished).length;
@@ -82,151 +136,214 @@ export default function DashboardPage() {
   }, [instructorCourses]);
 
   const recentCourses = useMemo(() => instructorCourses.slice(0, 3), [instructorCourses]);
+  const hasUnseen = pendingTotal > 0 && hasUnseenPendingRequests(latestPendingAt);
+
+  const refreshPendingRequests = async () => {
+    if (!isInstructorRole) return;
+    const result = await apiFetch<PendingAccessRequestsResponse>("/instructor/requests?limit=5");
+    setPendingRequests(result.requests);
+    setPendingTotal(result.totalPending);
+    setLatestPendingAt(result.latestPendingAt);
+  };
 
   return (
     <div className="grid gap-6">
-      <div className="rounded-[var(--radius-xl)] border border-[color:var(--border)] bg-[color:var(--surface)]/80 p-6 shadow-[var(--shadow-card)]">
-        <p className="text-3xl font-semibold tracking-tight text-[var(--text)]">
-          {user?.fullName ? `Welcome, ${user.fullName}` : "Welcome"}
-        </p>
-        <div className="mt-3 text-sm text-[var(--text-muted)]">
-          {user ? (
-            <div className="grid gap-1">
-              <p>Logged in as: {user.email}</p>
-              <p>Role: {user.role}</p>
-            </div>
-          ) : (
-            <p>Loading...</p>
-          )}
-        </div>
-      </div>
+      <GlassCard
+        title={user?.fullName ? `Welcome, ${user.fullName}` : "Welcome"}
+        subtitle={user ? `Logged in as ${user.email} (${user.role})` : "Loading..."}
+      />
 
       {isStudent ? (
         <>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">Enrolled courses</p>
-              <p className="mt-2 text-2xl font-semibold text-[var(--text)]">
-                {summary ? summary.totalEnrolledCourses : "--"}
-              </p>
-            </div>
-            <div className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">Lessons completed</p>
-              <p className="mt-2 text-2xl font-semibold text-[var(--text)]">
-                {summary ? summary.totalLessonsCompleted : "--"}
-              </p>
-            </div>
+            <StatCard
+              label="Enrolled Courses"
+              value={summary ? summary.totalEnrolledCourses : "--"}
+              hint="Active enrollments"
+            />
+            <StatCard
+              label="Lessons Completed"
+              value={summary ? summary.totalLessonsCompleted : "--"}
+              hint="Across all active courses"
+            />
           </div>
 
-          <div className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4">
-            <p className="text-[var(--text)]">My Progress</p>
+          <GlassCard title="My Progress" subtitle="Snapshot of your learning activity.">
             {summary ? (
-              <div className="mt-2 grid gap-1 text-sm text-[var(--text-muted)]">
+              <div className="grid gap-1 text-sm text-[var(--text-muted)]">
                 <p>Enrolled courses: {summary.totalEnrolledCourses}</p>
                 <p>Lessons completed: {summary.totalLessonsCompleted}</p>
               </div>
             ) : progressError ? (
-              <p className="mt-2 text-sm text-rose-300">{progressError}</p>
+              <p className="text-sm text-rose-300">{progressError}</p>
             ) : progressLoading ? (
-              <p className="mt-2 text-sm text-[var(--text-muted)]">Loading...</p>
+              <p className="text-sm text-[var(--text-muted)]">Loading...</p>
             ) : (
-              <p className="mt-2 text-sm text-[var(--text-muted)]">No progress data yet.</p>
+              <p className="text-sm text-[var(--text-muted)]">No progress data yet.</p>
             )}
-          </div>
+          </GlassCard>
 
           <div className="flex flex-wrap gap-3">
-            <Button type="button" onClick={() => navigate("/courses")}>
-              View courses
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => navigate("/my-courses")}>
-              My courses
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => navigate("/profile")}>
-              Open profile
-            </Button>
+            <Button type="button" onClick={() => navigate("/courses")}>View courses</Button>
+            <Button type="button" variant="ghost" onClick={() => navigate("/my-courses")}>My courses</Button>
+            <Button type="button" variant="ghost" onClick={() => navigate("/profile")}>Open profile</Button>
           </div>
         </>
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">Total Courses</p>
-              <p className="mt-2 text-2xl font-semibold text-[var(--text)]">
-                {instructorLoading ? "--" : instructorStats.totalCourses}
-              </p>
-            </div>
-            <div className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">Published</p>
-              <p className="mt-2 text-2xl font-semibold text-[var(--text)]">
-                {instructorLoading ? "--" : instructorStats.publishedCourses}
-              </p>
-            </div>
-            <div className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">Drafts</p>
-              <p className="mt-2 text-2xl font-semibold text-[var(--text)]">
-                {instructorLoading ? "--" : instructorStats.draftCourses}
-              </p>
-            </div>
-            <div className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">Enrollments</p>
-              <p className="mt-2 text-2xl font-semibold text-[var(--text)]">
-                {instructorLoading ? "--" : instructorStats.totalEnrollments}
-              </p>
-            </div>
+            <StatCard label="Total Courses" value={instructorLoading ? "--" : instructorStats.totalCourses} />
+            <StatCard label="Published" value={instructorLoading ? "--" : instructorStats.publishedCourses} />
+            <StatCard label="Drafts" value={instructorLoading ? "--" : instructorStats.draftCourses} />
+            <StatCard label="Enrollments" value={instructorLoading ? "--" : instructorStats.totalEnrollments} />
           </div>
 
-          <div className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4">
-            <p className="text-[var(--text)]">Recent courses</p>
+          <GlassCard title="Recent Courses" subtitle="Your last updated courses.">
             {instructorLoading ? (
-              <p className="mt-2 text-sm text-[var(--text-muted)]">Loading...</p>
+              <p className="text-sm text-[var(--text-muted)]">Loading...</p>
             ) : instructorError ? (
-              <p className="mt-2 text-sm text-rose-300">{instructorError}</p>
+              <p className="text-sm text-rose-300">{instructorError}</p>
             ) : recentCourses.length === 0 ? (
-              <p className="mt-2 text-sm text-[var(--text-muted)]">No courses yet.</p>
+              <p className="text-sm text-[var(--text-muted)]">No courses yet.</p>
             ) : (
-              <div className="mt-3 grid gap-3">
+              <div className="grid gap-3">
                 {recentCourses.map((course) => (
                   <div
                     key={course.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)]/60 px-3 py-2"
+                    className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-glass-surface)] px-3 py-2"
                   >
-                    <div className="grid gap-1">
-                      <p className="text-sm font-semibold text-[var(--text)]">{course.title}</p>
-                      <p className="text-xs text-[var(--text-muted)]">
-                        {course.isPublished ? "Published" : "Draft"} • Updated {new Date(course.updatedAt).toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant="ghost" onClick={() => navigate(`/instructor/courses/${course.id}`)}>
-                        Edit
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => navigate(`/instructor/courses/${course.id}/students`)}
-                      >
-                        Students
-                      </Button>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="grid gap-1">
+                        <p className="text-sm font-semibold text-[var(--text)]">{course.title}</p>
+                        <p className="text-xs text-[var(--ui-text-muted)]">
+                          {course.isPublished ? "Published" : "Draft"} | Updated {new Date(course.updatedAt).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button type="button" variant="ghost" onClick={() => navigate(`/instructor/courses/${course.id}`)}>Edit</Button>
+                        <Button type="button" variant="ghost" onClick={() => navigate(`/instructor/courses/${course.id}/students`)}>
+                          Students
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-          </div>
+          </GlassCard>
+
+          <GlassCard
+            title="Pending Access Requests"
+            subtitle="Review and approve student access quickly."
+            actions={
+              <div className="flex items-center gap-2">
+                <NotificationDot visible={hasUnseen} pulseOnce={pulsePendingDot} />
+                <Badge variant="count" tone="success">{requestsLoading ? "--" : pendingTotal}</Badge>
+              </div>
+            }
+          >
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setRequestsExpanded((prev) => {
+                    const next = !prev;
+                    if (next) {
+                      markRequestsSeen();
+                    }
+                    return next;
+                  });
+                }}
+              >
+                {requestsExpanded ? "Hide latest" : "Review latest"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  markRequestsSeen();
+                  navigate("/instructor/requests");
+                }}
+              >
+                View all
+              </Button>
+            </div>
+
+            {requestsExpanded && (
+              <div className="mt-3">
+                {requestsLoading ? (
+                  <p className="text-sm text-[var(--text-muted)]">Loading...</p>
+                ) : requestsError ? (
+                  <p className="text-sm text-rose-300">{requestsError}</p>
+                ) : pendingRequests.length === 0 ? (
+                  <p className="text-sm text-[var(--text-muted)]">No pending requests.</p>
+                ) : (
+                  <div className="grid gap-3">
+                    {pendingRequests.map((request) => (
+                      <GlassCard
+                        key={request.id}
+                        className="ui-fade-scale rounded-[var(--ui-radius-md)] p-3"
+                        title={request.user.fullName?.trim() || request.user.email}
+                        subtitle={`Course: ${request.course.title} | Requested: ${new Date(request.createdAt).toLocaleString()}`}
+                        actions={
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              disabled={savingRequestId !== null}
+                              onClick={async () => {
+                                setSavingRequestId(request.id);
+                                setRequestsError(null);
+                                try {
+                                  await apiFetch<{ ok: true }>(`/instructor/enrollments/${request.id}/approve`, {
+                                    method: "POST",
+                                  });
+                                  await refreshPendingRequests();
+                                } catch (err) {
+                                  setRequestsError(err instanceof Error ? err.message : "Failed to approve request");
+                                } finally {
+                                  setSavingRequestId(null);
+                                }
+                              }}
+                            >
+                              {savingRequestId === request.id ? "Saving..." : "Approve"}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              disabled={savingRequestId !== null}
+                              onClick={async () => {
+                                setSavingRequestId(request.id);
+                                setRequestsError(null);
+                                try {
+                                  await apiFetch<{ ok: true }>(`/instructor/enrollments/${request.id}/revoke`, {
+                                    method: "POST",
+                                  });
+                                  await refreshPendingRequests();
+                                } catch (err) {
+                                  setRequestsError(err instanceof Error ? err.message : "Failed to reject request");
+                                } finally {
+                                  setSavingRequestId(null);
+                                }
+                              }}
+                            >
+                              {savingRequestId === request.id ? "Saving..." : "Reject"}
+                            </Button>
+                          </div>
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </GlassCard>
 
           <div className="flex flex-wrap gap-3">
-            <Button type="button" onClick={() => navigate("/instructor/new")}>
-              Create course
-            </Button>
-            <Button type="button" onClick={() => navigate("/instructor")}>
-              Go to Instructor workspace
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => navigate("/courses")}>
-              View catalog
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => navigate("/profile")}>
-              Open profile
-            </Button>
+            <Button type="button" onClick={() => navigate("/instructor/new")}>Create course</Button>
+            <Button type="button" onClick={() => navigate("/instructor")}>Go to Instructor workspace</Button>
+            <Button type="button" variant="ghost" onClick={() => navigate("/courses")}>View catalog</Button>
+            <Button type="button" variant="ghost" onClick={() => navigate("/profile")}>Open profile</Button>
           </div>
         </>
       )}

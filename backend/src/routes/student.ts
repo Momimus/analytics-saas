@@ -49,6 +49,7 @@ router.post(
   "/courses/:id/enroll",
   requireAuth,
   requireRole([Role.STUDENT]),
+  // Deprecated alias for backward compatibility. Use POST /courses/:id/request-access.
   asyncHandler(async (req, res) => {
     const userId = requireUserId(req.user?.id);
     const courseId = getRouteId(req.params.id);

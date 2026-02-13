@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import Card from "../components/Card";
 import Button from "../components/Button";
 import Input from "../components/Input";
+import Badge from "../components/ui/Badge";
+import GlassCard from "../components/ui/GlassCard";
 import { apiFetch } from "../lib/api";
 import { isDirectImageUrl } from "../lib/media";
 
@@ -33,18 +34,6 @@ type LessonDraft = {
   pdfUrl: string;
 };
 
-type AccessRequest = {
-  id: string;
-  status: "REQUESTED";
-  createdAt: string;
-  updatedAt: string;
-  user: {
-    id: string;
-    email: string;
-    fullName: string | null;
-  };
-};
-
 export default function InstructorCourseEditorPage() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -67,19 +56,11 @@ export default function InstructorCourseEditorPage() {
   const [editingLesson, setEditingLesson] = useState<LessonDraft>({ title: "", videoUrl: "", pdfUrl: "" });
   const [lessonToDelete, setLessonToDelete] = useState<Lesson | null>(null);
   const [deletingLessonId, setDeletingLessonId] = useState<string | null>(null);
-  const [requests, setRequests] = useState<AccessRequest[]>([]);
-  const [savingRequestId, setSavingRequestId] = useState<string | null>(null);
 
   const refreshLessons = useCallback(async () => {
     if (!id) return;
     const lessonResult = await apiFetch<{ lessons: Lesson[] }>(`/instructor/courses/${id}/lessons`);
     setLessons(lessonResult.lessons);
-  }, [id]);
-
-  const refreshRequests = useCallback(async () => {
-    if (!id) return;
-    const result = await apiFetch<{ requests: AccessRequest[] }>(`/instructor/courses/${id}/requests`);
-    setRequests(result.requests);
   }, [id]);
 
   useEffect(() => {
@@ -88,12 +69,10 @@ export default function InstructorCourseEditorPage() {
     Promise.all([
       apiFetch<{ course: Course }>(`/instructor/courses/${id}`),
       apiFetch<{ lessons: Lesson[] }>(`/instructor/courses/${id}/lessons`),
-      apiFetch<{ requests: AccessRequest[] }>(`/instructor/courses/${id}/requests`),
     ])
-      .then(([courseResult, lessonResult, requestsResult]) => {
+      .then(([courseResult, lessonResult]) => {
         setCourse(courseResult.course);
         setLessons(lessonResult.lessons);
-        setRequests(requestsResult.requests);
         setDraft({
           title: courseResult.course.title ?? "",
           description: courseResult.course.description ?? "",
@@ -136,19 +115,15 @@ export default function InstructorCourseEditorPage() {
         </div>
       </div>
 
-      <Card title={course?.title ?? "Course"} subtitle={course ? `Updated ${new Date(course.updatedAt).toLocaleString()}` : ""} className="w-full">
+      <GlassCard title={course?.title ?? "Course"} subtitle={course ? `Updated ${new Date(course.updatedAt).toLocaleString()}` : ""} className="w-full">
         {loading ? (
           <p className="text-sm text-[var(--text-muted)]">Loading...</p>
         ) : (
           <div className="grid gap-4">
             <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span
-                className={`rounded-full px-2 py-1 ${
-                  course?.isPublished ? "bg-emerald-500/20 text-emerald-300" : "bg-amber-500/20 text-amber-300"
-                }`}
-              >
+              <Badge tone={course?.isPublished ? "success" : "neutral"}>
                 {course?.isPublished ? "Published" : "Draft"}
-              </span>
+              </Badge>
               <span className="text-[var(--text-muted)]">Lessons: {course?.lessonsCount ?? lessons.length}</span>
               <span className="text-[var(--text-muted)]">Enrollments: {course?.enrollmentsCount ?? 0}</span>
             </div>
@@ -256,85 +231,20 @@ export default function InstructorCourseEditorPage() {
             {notice && <p className="text-sm text-emerald-300">{notice}</p>}
           </div>
         )}
-      </Card>
+      </GlassCard>
 
-      <Card title="Requests" subtitle="Approve or reject pending access requests." className="w-full">
-        {loading ? (
-          <p className="text-sm text-[var(--text-muted)]">Loading...</p>
-        ) : requests.length === 0 ? (
-          <p className="text-sm text-[var(--text-muted)]">No pending requests.</p>
-        ) : (
-          <div className="grid gap-3">
-            {requests.map((request) => (
-              <div
-                key={request.id}
-                className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-3"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="grid gap-1">
-                    <p className="text-sm font-semibold text-[var(--text)]">
-                      {request.user.fullName?.trim() || request.user.email}
-                    </p>
-                    <div className="grid gap-1 text-xs text-[var(--text-muted)]">
-                      <span>Email: {request.user.email}</span>
-                      <span>Requested: {new Date(request.createdAt).toLocaleString()}</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      disabled={savingRequestId !== null}
-                      onClick={async () => {
-                        setSavingRequestId(request.id);
-                        setError(null);
-                        setNotice(null);
-                        try {
-                          await apiFetch<{ ok: true }>(`/instructor/enrollments/${request.id}/approve`, {
-                            method: "POST",
-                          });
-                          await refreshRequests();
-                          setNotice("Request approved.");
-                        } catch (err) {
-                          setError(err instanceof Error ? err.message : "Failed to approve request");
-                        } finally {
-                          setSavingRequestId(null);
-                        }
-                      }}
-                    >
-                      {savingRequestId === request.id ? "Saving..." : "Approve"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      disabled={savingRequestId !== null}
-                      onClick={async () => {
-                        setSavingRequestId(request.id);
-                        setError(null);
-                        setNotice(null);
-                        try {
-                          await apiFetch<{ ok: true }>(`/instructor/enrollments/${request.id}/revoke`, {
-                            method: "POST",
-                          });
-                          await refreshRequests();
-                          setNotice("Request rejected.");
-                        } catch (err) {
-                          setError(err instanceof Error ? err.message : "Failed to reject request");
-                        } finally {
-                          setSavingRequestId(null);
-                        }
-                      }}
-                    >
-                      {savingRequestId === request.id ? "Saving..." : "Reject"}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+      <GlassCard title="Requests" subtitle="Requests are managed from Home." className="w-full">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm text-[var(--text-muted)]">
+            Use Home {"->"} Pending access requests for approvals and rejections.
+          </p>
+          <Button type="button" variant="ghost" onClick={() => navigate("/instructor/requests")}>
+            Open Requests
+          </Button>
+        </div>
+      </GlassCard>
 
-      <Card title="Lessons" subtitle="Add and manage course lessons." className="w-full">
+      <GlassCard title="Lessons" subtitle="Add and manage course lessons." className="w-full">
         {loading ? (
           <p className="text-sm text-[var(--text-muted)]">Loading...</p>
         ) : (
@@ -516,7 +426,7 @@ export default function InstructorCourseEditorPage() {
             )}
           </div>
         )}
-      </Card>
+      </GlassCard>
 
       {lessonToDelete && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4">

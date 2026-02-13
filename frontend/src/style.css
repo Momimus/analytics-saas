@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./styles/tokens.css";
 
 :root {
   color-scheme: dark;
@@ -129,9 +130,55 @@ body {
   animation: cardRise 650ms ease-out;
 }
 
+@keyframes uiFadeScaleIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes uiBadgeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes uiDotPulseOnce {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ui-accent) 42%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
+.ui-fade-scale {
+  animation: uiFadeScaleIn var(--ui-motion-normal) cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.ui-badge-enter {
+  animation: uiBadgeIn var(--ui-motion-fast) ease-out;
+}
+
+.ui-dot-pulse-once {
+  animation: uiDotPulseOnce 850ms ease-out 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .page-fade,
-  .card-animate {
+  .card-animate,
+  .ui-fade-scale,
+  .ui-badge-enter,
+  .ui-dot-pulse-once {
     animation: none;
   }
 }

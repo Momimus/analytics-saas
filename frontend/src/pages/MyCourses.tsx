@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Card from "../components/Card";
 import Button from "../components/Button";
+import Badge from "../components/ui/Badge";
+import GlassCard from "../components/ui/GlassCard";
 import { useAuth } from "../context/auth";
 import { apiFetch } from "../lib/api";
 import { formatInstructorName } from "../lib/instructor";
@@ -59,7 +60,7 @@ export default function MyCoursesPage() {
 
   if (user?.role !== "STUDENT") {
     return (
-      <Card title="My Courses" subtitle="Courses you are enrolled in." className="w-full">
+      <GlassCard title="My Courses" subtitle="Courses you are enrolled in." className="w-full">
         <div className="grid gap-3">
           <p className="text-sm text-[var(--text-muted)]">This section is available to students only.</p>
           <div>
@@ -68,12 +69,12 @@ export default function MyCoursesPage() {
             </Button>
           </div>
         </div>
-      </Card>
+      </GlassCard>
     );
   }
 
   return (
-    <Card title="My Courses" subtitle="Courses you are enrolled in." className="w-full">
+    <GlassCard title="My Courses" subtitle="Courses you are enrolled in." className="w-full">
       {loading ? (
         <p className="text-sm text-[var(--text-muted)]">Loading...</p>
       ) : error ? (
@@ -93,15 +94,9 @@ export default function MyCoursesPage() {
                     const completed = item?.completed ?? 0;
                     const isCompleted = total > 0 && completed >= total;
                     return (
-                      <span
-                        className={`rounded-full px-2 py-1 text-xs font-medium ${
-                          isCompleted
-                            ? "bg-emerald-500/20 text-emerald-300"
-                            : "bg-rose-500/20 text-rose-300"
-                        }`}
-                      >
+                      <Badge tone={isCompleted ? "success" : "warn"}>
                         {isCompleted ? "Completed" : "Incomplete"}
-                      </span>
+                      </Badge>
                     );
                   })()}
                 </div>
@@ -147,6 +142,6 @@ export default function MyCoursesPage() {
           ))}
         </div>
       )}
-    </Card>
+    </GlassCard>
   );
 }

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import Card from "../components/Card";
 import Button from "../components/Button";
 import Input from "../components/Input";
+import GlassCard from "../components/ui/GlassCard";
 import { apiFetch } from "../lib/api";
 
 export default function RegisterPage() {
@@ -98,7 +98,7 @@ export default function RegisterPage() {
   return (
     <div className="fixed inset-0 overflow-y-auto px-4 py-6 pointer-events-none">
       <div className="flex min-h-full w-full items-center justify-center">
-      <Card title="Create account" subtitle="Set up your LMS profile in seconds." className="pointer-events-auto w-full max-w-md p-5 sm:p-6">
+      <GlassCard title="Create account" subtitle="Set up your LMS profile in seconds." className="pointer-events-auto w-full max-w-md p-5 sm:p-6">
         <form
           ref={formRef}
           className="grid gap-4"
@@ -287,7 +287,7 @@ export default function RegisterPage() {
             Already have an account? Sign in
           </Link>
         </div>
-      </Card>
+      </GlassCard>
       </div>
     </div>
   );

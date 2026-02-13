@@ -12,6 +12,7 @@ import {
   listInstructorCourses,
   listInstructorCourseStudents,
   listInstructorCourseRequests,
+  listInstructorRequests,
   listInstructorLessons,
   requestCourseDeletion,
   setCoursePublishState,
@@ -52,6 +53,24 @@ function optionalImageUrl(value: unknown) {
 }
 
 router.use(requireAuth, requireRole([Role.INSTRUCTOR, Role.ADMIN]));
+
+router.get(
+  "/requests",
+  asyncHandler(async (req: AuthRequest, res) => {
+    const actor = getActor(req);
+    const limitRaw = req.query.limit;
+    let limit: number | undefined;
+    if (typeof limitRaw === "string" && limitRaw.trim().length > 0) {
+      const parsed = Number(limitRaw);
+      if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 100) {
+        throw new HttpError(400, "limit must be an integer between 1 and 100");
+      }
+      limit = parsed;
+    }
+    const result = await listInstructorRequests(actor, limit);
+    res.json(result);
+  })
+);
 
 router.get(
   "/courses",

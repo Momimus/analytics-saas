@@ -15,6 +15,67 @@ type CourseInput = {
   imageUrl?: string | null;
 };
 
+export type InstructorPendingRequestRow = {
+  id: string;
+  status: "REQUESTED";
+  createdAt: Date;
+  updatedAt: Date;
+  course: {
+    id: string;
+    title: string;
+  };
+  user: {
+    id: string;
+    email: string;
+    fullName: string | null;
+  };
+};
+
+const pendingRequestSelect = {
+  id: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+  course: {
+    select: {
+      id: true,
+      title: true,
+    },
+  },
+  user: {
+    select: {
+      id: true,
+      email: true,
+      fullName: true,
+    },
+  },
+} as const;
+
+function mapPendingRequest(request: {
+  id: string;
+  status: EnrollmentStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  course: { id: string; title: string };
+  user: { id: string; email: string; fullName: string | null };
+}): InstructorPendingRequestRow {
+  return {
+    id: request.id,
+    status: "REQUESTED",
+    createdAt: request.createdAt,
+    updatedAt: request.updatedAt,
+    course: {
+      id: request.course.id,
+      title: request.course.title,
+    },
+    user: {
+      id: request.user.id,
+      email: request.user.email,
+      fullName: request.user.fullName,
+    },
+  };
+}
+
 function buildCourseOwnershipWhere(id: string, actor: Actor) {
   if (actor.role === Role.ADMIN) {
     return { id, archivedAt: null };
@@ -328,6 +389,37 @@ export async function listInstructorCourseRequests(courseId: string, actor: Acto
       },
     },
   });
+}
+
+export async function listInstructorRequests(actor: Actor, limit?: number) {
+  const where =
+    actor.role === Role.ADMIN
+      ? { status: EnrollmentStatus.REQUESTED, course: { archivedAt: null } }
+      : {
+          status: EnrollmentStatus.REQUESTED,
+          course: { createdById: actor.id, archivedAt: null },
+        };
+
+  const [totalPending, latestPending, requests] = await prisma.$transaction([
+    prisma.enrollment.count({ where }),
+    prisma.enrollment.findFirst({
+      where,
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
+    }),
+    prisma.enrollment.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: pendingRequestSelect,
+    }),
+  ]);
+
+  return {
+    totalPending,
+    latestPendingAt: latestPending?.createdAt ?? null,
+    requests: requests.map(mapPendingRequest),
+  };
 }
 
 export async function requestCourseDeletion(courseId: string, reason: string, actor: Actor) {

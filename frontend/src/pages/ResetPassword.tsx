@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import Card from "../components/Card";
 import Button from "../components/Button";
+import GlassCard from "../components/ui/GlassCard";
 import { apiFetch } from "../lib/api";
 
 export default function ResetPasswordPage() {
@@ -22,7 +22,7 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="flex min-h-[calc(100svh-64px)] w-full items-center justify-center px-4 py-6">
-      <Card title="Reset password" subtitle="Set a new password for your account." className="w-full max-w-md p-5 sm:p-6">
+      <GlassCard title="Reset password" subtitle="Set a new password for your account." className="w-full max-w-md p-5 sm:p-6">
         <form
           className="grid gap-4"
           onSubmit={async (event) => {
@@ -76,7 +76,7 @@ export default function ResetPasswordPage() {
             </Button>
           </div>
         </form>
-      </Card>
+      </GlassCard>
     </div>
   );
 }

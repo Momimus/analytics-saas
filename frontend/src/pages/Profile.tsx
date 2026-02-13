@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import Card from "../components/Card";
 import Button from "../components/Button";
 import { apiFetch } from "../lib/api";
 import { COUNTRIES } from "../lib/countries";
 import CountrySelect from "../components/CountrySelect";
 import { useAuth } from "../context/auth";
+import GlassCard from "../components/ui/GlassCard";
 
 export default function ProfilePage() {
   const { user, setUser } = useAuth();
@@ -32,7 +32,7 @@ export default function ProfilePage() {
   );
 
   return (
-    <Card title="Profile" subtitle="Update your contact information." className="w-full">
+    <GlassCard title="Profile" subtitle="Update your contact information." className="w-full">
       <form
         className="grid gap-4 md:gap-5"
         onSubmit={async (event) => {
@@ -122,6 +122,6 @@ export default function ProfilePage() {
           </Button>
         </div>
       </form>
-    </Card>
+    </GlassCard>
   );
 }

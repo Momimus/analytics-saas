@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import Card from "../components/Card";
 import Button from "../components/Button";
 import Input from "../components/Input";
+import GlassCard from "../components/ui/GlassCard";
 import { apiFetch } from "../lib/api";
 import { useAuth } from "../context/auth";
 
@@ -22,7 +22,7 @@ export default function LoginPage() {
   return (
     <div className="fixed inset-0 overflow-y-auto px-4 py-6 pointer-events-none">
       <div className="flex min-h-full w-full items-center justify-center">
-      <Card
+      <GlassCard
         title="Welcome back"
         subtitle="Use your LMS credentials to sign in."
         className="pointer-events-auto w-full max-w-md p-5 sm:p-6"
@@ -115,7 +115,7 @@ export default function LoginPage() {
             Forgot password?
           </Link>
         </div>
-      </Card>
+      </GlassCard>
       </div>
     </div>
   );

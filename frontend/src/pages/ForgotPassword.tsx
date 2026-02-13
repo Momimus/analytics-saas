@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Card from "../components/Card";
 import Button from "../components/Button";
 import Input from "../components/Input";
+import GlassCard from "../components/ui/GlassCard";
 import { apiFetch } from "../lib/api";
 
 export default function ForgotPasswordPage() {
@@ -15,7 +15,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="flex min-h-[calc(100svh-64px)] w-full items-center justify-center px-4 py-6">
-      <Card title="Forgot password" subtitle="We will send you a reset link." className="w-full max-w-md p-5 sm:p-6">
+      <GlassCard title="Forgot password" subtitle="We will send you a reset link." className="w-full max-w-md p-5 sm:p-6">
         <form
           className="grid gap-4"
           onSubmit={async (event) => {
@@ -66,7 +66,7 @@ export default function ForgotPasswordPage() {
             Back to login
           </Button>
         </form>
-      </Card>
+      </GlassCard>
     </div>
   );
 }

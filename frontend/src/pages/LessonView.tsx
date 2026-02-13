@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import Card from "../components/Card";
 import Button from "../components/Button";
+import GlassCard from "../components/ui/GlassCard";
 import { useAuth } from "../context/auth";
 import { apiFetch } from "../lib/api";
 
@@ -85,7 +85,7 @@ export default function LessonViewPage() {
   };
 
   return (
-    <Card title={lesson?.title ?? "Lesson"} subtitle="Lesson details" className="w-full">
+    <GlassCard title={lesson?.title ?? "Lesson"} subtitle="Lesson details" className="w-full">
       {user?.role !== "STUDENT" ? (
         <p className="text-sm text-[var(--text-muted)]">Lesson progress is available to students only.</p>
       ) : loading ? (
@@ -128,6 +128,6 @@ export default function LessonViewPage() {
           </div>
         </div>
       ) : null}
-    </Card>
+    </GlassCard>
   );
 }

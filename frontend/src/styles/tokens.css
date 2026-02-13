@@ -1,0 +1,26 @@
+:root {
+  --ui-radius-md: var(--radius-md);
+  --ui-radius-xl: var(--radius-xl);
+  --ui-radius-2xl: 24px;
+
+  --ui-glass-surface: color-mix(in srgb, var(--surface) 84%, transparent);
+  --ui-glass-panel: color-mix(in srgb, var(--surface-strong) 72%, transparent);
+  --ui-glass-elevated: color-mix(in srgb, var(--surface-strong) 86%, transparent);
+  --ui-border-soft: color-mix(in srgb, var(--border) 82%, transparent);
+  --ui-border-strong: color-mix(in srgb, var(--border) 100%, transparent);
+
+  --ui-shadow-sm: 0 10px 24px rgba(2, 8, 23, 0.24);
+  --ui-shadow-md: var(--shadow-card);
+  --ui-shadow-glow: 0 0 0 1px color-mix(in srgb, var(--accent) 26%, transparent),
+    0 14px 34px color-mix(in srgb, var(--accent) 22%, transparent);
+
+  --ui-text-muted: var(--text-muted);
+  --ui-text-subtle: color-mix(in srgb, var(--text-muted) 76%, var(--text) 24%);
+
+  --ui-accent: var(--accent);
+  --ui-accent-soft: color-mix(in srgb, var(--accent) 22%, transparent);
+  --ui-accent-glow: color-mix(in srgb, var(--accent) 36%, transparent);
+
+  --ui-motion-fast: 150ms;
+  --ui-motion-normal: 200ms;
+}

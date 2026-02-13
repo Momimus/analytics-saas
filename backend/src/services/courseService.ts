@@ -1,16 +1,45 @@
 import prisma from "../lib/prisma.js";
 
-export async function listCourses() {
-  const courses = await prisma.course.findMany({
-    where: { isPublished: true, archivedAt: null },
-    orderBy: { createdAt: "desc" },
-    include: {
-      _count: { select: { lessons: true } },
-      createdBy: { select: { fullName: true, email: true } },
-    },
-  });
+const courseListSelect = {
+  id: true,
+  title: true,
+  description: true,
+  category: true,
+  level: true,
+  imageUrl: true,
+  isPublished: true,
+  createdAt: true,
+  updatedAt: true,
+  _count: { select: { lessons: true } },
+  createdBy: { select: { fullName: true, email: true } },
+} as const;
 
-  return courses.map((course) => ({
+const publicCourseSelect = {
+  id: true,
+  title: true,
+  description: true,
+  imageUrl: true,
+  isPublished: true,
+  createdAt: true,
+  updatedAt: true,
+  _count: { select: { lessons: true } },
+  createdBy: { select: { fullName: true, email: true } },
+} as const;
+
+function mapCatalogCourse(course: {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  level: string | null;
+  imageUrl: string | null;
+  isPublished: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  _count: { lessons: number };
+  createdBy: { fullName: string | null; email: string } | null;
+}) {
+  return {
     id: course.id,
     title: course.title,
     description: course.description,
@@ -25,28 +54,20 @@ export async function listCourses() {
       fullName: course.createdBy?.fullName ?? null,
       email: course.createdBy?.email ?? null,
     },
-  }));
+  };
 }
 
-export async function getCourseById(id: string) {
-  return prisma.course.findFirst({
-    where: { id, isPublished: true, archivedAt: null },
-    include: { createdBy: { select: { fullName: true, email: true } } },
-  });
-}
-
-export async function getPublicCourseById(id: string) {
-  const course = await prisma.course.findFirst({
-    where: { id, isPublished: true, archivedAt: null },
-    include: {
-      _count: { select: { lessons: true } },
-      createdBy: { select: { fullName: true, email: true } },
-    },
-  });
-  if (!course) {
-    return null;
-  }
-
+function mapPublicCourse(course: {
+  id: string;
+  title: string;
+  description: string | null;
+  imageUrl: string | null;
+  isPublished: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  _count: { lessons: number };
+  createdBy: { fullName: string | null; email: string } | null;
+}) {
   return {
     id: course.id,
     title: course.title,
@@ -61,6 +82,35 @@ export async function getPublicCourseById(id: string) {
       email: course.createdBy?.email ?? null,
     },
   };
+}
+
+export async function listCourses() {
+  const courses = await prisma.course.findMany({
+    where: { isPublished: true, archivedAt: null },
+    orderBy: { createdAt: "desc" },
+    select: courseListSelect,
+  });
+
+  return courses.map(mapCatalogCourse);
+}
+
+export async function getCourseById(id: string) {
+  return prisma.course.findFirst({
+    where: { id, isPublished: true, archivedAt: null },
+    include: { createdBy: { select: { fullName: true, email: true } } },
+  });
+}
+
+export async function getPublicCourseById(id: string) {
+  const course = await prisma.course.findFirst({
+    where: { id, isPublished: true, archivedAt: null },
+    select: publicCourseSelect,
+  });
+  if (!course) {
+    return null;
+  }
+
+  return mapPublicCourse(course);
 }
 
 export async function getCourseByIdUnrestricted(id: string) {
