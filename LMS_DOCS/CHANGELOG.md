@@ -34,3 +34,8 @@
   - course public detail
   - instructor aggregated requests
   - student enrollment status list
+
+### System Audit and Admin Preparation Documentation
+- Performed full read-only current-state audit across auth/security, authorization, enrollment flow, lifecycle, UI architecture, validation, and API surface.
+- Updated all project documentation in `LMS_DOCS` to reflect current behavior and known gaps.
+- Added `ADMIN_MILESTONE_PREP.md` with readiness analysis, prioritized gaps, and pre-admin cleanup checklist.

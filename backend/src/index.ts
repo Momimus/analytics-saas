@@ -13,6 +13,7 @@ import { requireAuth, requireRole, type AuthRequest } from "./middleware/auth.js
 import studentRoutes from "./routes/student.js";
 import { hardDeleteCourse } from "./services/instructorService.js";
 import { validateProfileUpdatePayload } from "./validation/profileValidation.js";
+import { sendError } from "./utils/httpError.js";
 
 const app = express();
 
@@ -68,7 +69,7 @@ app.use((req, res, next) => {
   }
   const origin = req.headers.origin;
   if (!origin || !ALLOWED_ORIGINS.includes(origin)) {
-    return res.status(403).json({ error: "Invalid request origin" });
+    return sendError(res, 403, "Invalid request origin", "FORBIDDEN");
   }
   return next();
 });
@@ -135,20 +136,20 @@ app.post("/auth/register", async (req, res) => {
   };
 
   if (!email || !password) {
-    return res.status(400).json({ error: "Email and password are required" });
+    return sendError(res, 400, "Email and password are required", "VALIDATION_ERROR");
   }
 
   if (role !== undefined) {
-    return res.status(400).json({ error: "Role cannot be set via registration" });
+    return sendError(res, 400, "Role cannot be set via registration", "VALIDATION_ERROR");
   }
 
   if (password.length < 6) {
-    return res.status(400).json({ error: "Password must be at least 6 characters" });
+    return sendError(res, 400, "Password must be at least 6 characters", "VALIDATION_ERROR");
   }
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    return res.status(409).json({ error: "Email already registered" });
+    return sendError(res, 409, "Email already registered", "CONFLICT");
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
@@ -178,17 +179,17 @@ app.post("/auth/login", async (req, res) => {
   };
 
   if (!email || !password) {
-    return res.status(400).json({ error: "Email and password are required" });
+    return sendError(res, 400, "Email and password are required", "VALIDATION_ERROR");
   }
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
-    return res.status(401).json({ error: "Invalid credentials" });
+    return sendError(res, 401, "Invalid credentials", "UNAUTHORIZED");
   }
 
   const isValid = await bcrypt.compare(password, user.passwordHash);
   if (!isValid) {
-    return res.status(401).json({ error: "Invalid credentials" });
+    return sendError(res, 401, "Invalid credentials", "UNAUTHORIZED");
   }
 
   const token = signToken({ id: user.id, role: user.role });
@@ -244,11 +245,11 @@ app.post("/auth/reset-password", async (req, res) => {
   const { token, newPassword } = req.body as { token?: string; newPassword?: string };
 
   if (!token || !newPassword) {
-    return res.status(400).json({ error: "Token and new password are required" });
+    return sendError(res, 400, "Token and new password are required", "VALIDATION_ERROR");
   }
 
   if (newPassword.length < 6) {
-    return res.status(400).json({ error: "Password must be at least 6 characters" });
+    return sendError(res, 400, "Password must be at least 6 characters", "VALIDATION_ERROR");
   }
 
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
@@ -264,7 +265,7 @@ app.post("/auth/reset-password", async (req, res) => {
   });
 
   if (!resetRecord) {
-    return res.status(400).json({ error: "Reset token is invalid or expired" });
+    return sendError(res, 400, "Reset token is invalid or expired", "VALIDATION_ERROR");
   }
 
   const passwordHash = await bcrypt.hash(newPassword, 10);
@@ -285,7 +286,7 @@ app.post("/auth/reset-password", async (req, res) => {
 
 app.get("/me", requireAuth, async (req: AuthRequest, res) => {
   if (!req.user) {
-    return res.status(401).json({ error: "Unauthorized" });
+    return sendError(res, 401, "Unauthorized", "UNAUTHORIZED");
   }
 
   try {
@@ -305,29 +306,24 @@ app.get("/me", requireAuth, async (req: AuthRequest, res) => {
     });
 
     if (!user) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return sendError(res, 401, "Unauthorized", "UNAUTHORIZED");
     }
 
     return res.json({ user });
   } catch (error) {
     console.error("GET /me failed", error);
-    return res.status(500).json({ error: "Unable to load session" });
+    return sendError(res, 500, "Unable to load session", "INTERNAL_ERROR");
   }
 });
 
 app.patch("/me", requireAuth, async (req: AuthRequest, res) => {
   if (!req.user) {
-    return res.status(401).json({ error: "Unauthorized" });
+    return sendError(res, 401, "Unauthorized", "UNAUTHORIZED");
   }
 
   const validation = validateProfileUpdatePayload(req.body as Record<string, unknown>);
   if (!validation.ok) {
-    return res.status(400).json({
-      ok: false,
-      error: "VALIDATION_ERROR",
-      message: validation.message,
-      fieldErrors: validation.fieldErrors,
-    });
+    return sendError(res, 400, validation.message, "VALIDATION_ERROR", validation.fieldErrors);
   }
 
   const updated = await prisma.user.update({
@@ -355,11 +351,11 @@ app.post("/admin/users/:id/role", requireAuth, requireRole([Role.ADMIN]), async 
   const resolvedRole = parseRole(role);
 
   if (!userId) {
-    return res.status(400).json({ error: "User id is required" });
+    return sendError(res, 400, "User id is required", "VALIDATION_ERROR");
   }
 
   if (!resolvedRole || resolvedRole === Role.STUDENT) {
-    return res.status(400).json({ error: "Role must be INSTRUCTOR or ADMIN" });
+    return sendError(res, 400, "Role must be INSTRUCTOR or ADMIN", "VALIDATION_ERROR");
   }
 
   const updated = await prisma.user.update({
@@ -398,10 +394,10 @@ app.get("/admin/delete-requests", requireAuth, requireRole([Role.ADMIN]), async 
 app.post("/admin/delete-requests/:id/approve", requireAuth, requireRole([Role.ADMIN]), async (req: AuthRequest, res) => {
   const requestId = getSingleParam(req.params.id);
   if (!requestId) {
-    return res.status(400).json({ error: "Request id is required" });
+    return sendError(res, 400, "Request id is required", "VALIDATION_ERROR");
   }
   if (!req.user) {
-    return res.status(401).json({ error: "Unauthorized" });
+    return sendError(res, 401, "Unauthorized", "UNAUTHORIZED");
   }
 
   const request = await prisma.deletionRequest.findUnique({
@@ -409,10 +405,10 @@ app.post("/admin/delete-requests/:id/approve", requireAuth, requireRole([Role.AD
     select: { id: true, status: true, courseId: true },
   });
   if (!request) {
-    return res.status(404).json({ error: "Deletion request not found" });
+    return sendError(res, 404, "Deletion request not found", "NOT_FOUND");
   }
   if (request.status !== "PENDING") {
-    return res.status(409).json({ error: "Deletion request already decided" });
+    return sendError(res, 409, "Deletion request already decided", "CONFLICT");
   }
 
   const adminNote = typeof req.body?.adminNote === "string" ? req.body.adminNote.trim() : null;
@@ -442,14 +438,14 @@ app.post("/admin/delete-requests/:id/approve", requireAuth, requireRole([Role.AD
 app.post("/admin/delete-requests/:id/reject", requireAuth, requireRole([Role.ADMIN]), async (req: AuthRequest, res) => {
   const requestId = getSingleParam(req.params.id);
   if (!requestId) {
-    return res.status(400).json({ error: "Request id is required" });
+    return sendError(res, 400, "Request id is required", "VALIDATION_ERROR");
   }
   if (!req.user) {
-    return res.status(401).json({ error: "Unauthorized" });
+    return sendError(res, 401, "Unauthorized", "UNAUTHORIZED");
   }
   const adminNote = typeof req.body?.adminNote === "string" ? req.body.adminNote.trim() : "";
   if (!adminNote) {
-    return res.status(400).json({ error: "adminNote is required when rejecting a deletion request" });
+    return sendError(res, 400, "adminNote is required when rejecting a deletion request", "VALIDATION_ERROR");
   }
 
   const request = await prisma.deletionRequest.findUnique({
@@ -457,10 +453,10 @@ app.post("/admin/delete-requests/:id/reject", requireAuth, requireRole([Role.ADM
     select: { id: true, status: true },
   });
   if (!request) {
-    return res.status(404).json({ error: "Deletion request not found" });
+    return sendError(res, 404, "Deletion request not found", "NOT_FOUND");
   }
   if (request.status !== "PENDING") {
-    return res.status(409).json({ error: "Deletion request already decided" });
+    return sendError(res, 409, "Deletion request already decided", "CONFLICT");
   }
 
   const now = new Date();
@@ -480,7 +476,7 @@ app.post("/admin/delete-requests/:id/reject", requireAuth, requireRole([Role.ADM
 app.delete("/admin/courses/:id/hard-delete", requireAuth, requireRole([Role.ADMIN]), async (req, res) => {
   const courseId = getSingleParam(req.params.id);
   if (!courseId) {
-    return res.status(400).json({ error: "Course id is required" });
+    return sendError(res, 400, "Course id is required", "VALIDATION_ERROR");
   }
   const result = await hardDeleteCourse(courseId);
   return res.json({ ok: true, deletedId: result.deletedId });
@@ -489,7 +485,7 @@ app.delete("/admin/courses/:id/hard-delete", requireAuth, requireRole([Role.ADMI
 app.delete("/admin/users/:id", requireAuth, requireRole([Role.ADMIN]), async (req, res) => {
   const userId = getSingleParam(req.params.id);
   if (!userId) {
-    return res.status(400).json({ error: "User id is required" });
+    return sendError(res, 400, "User id is required", "VALIDATION_ERROR");
   }
 
   const target = await prisma.user.findUnique({
@@ -498,7 +494,7 @@ app.delete("/admin/users/:id", requireAuth, requireRole([Role.ADMIN]), async (re
   });
 
   if (!target) {
-    return res.status(404).json({ error: "User not found" });
+    return sendError(res, 404, "User not found", "NOT_FOUND");
   }
 
   if (target.role === Role.INSTRUCTOR) {
@@ -506,7 +502,7 @@ app.delete("/admin/users/:id", requireAuth, requireRole([Role.ADMIN]), async (re
       where: { createdById: userId },
     });
     if (ownedCourses > 0) {
-      return res.status(409).json({ error: "Cannot delete instructor who still owns courses" });
+      return sendError(res, 409, "Cannot delete instructor who still owns courses", "CONFLICT");
     }
   }
 

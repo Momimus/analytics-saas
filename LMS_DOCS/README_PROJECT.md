@@ -1,88 +1,99 @@
 # LMS Project Documentation
 
 ## Overview
-This repository is a Learning Management System (LMS) monorepo with separate frontend and backend workspaces.
+LMS monorepo with two npm workspaces:
+- `frontend`: React + TypeScript + Vite + Tailwind
+- `backend`: Express + TypeScript + Prisma + PostgreSQL
 
-- Frontend: React + TypeScript + Vite + Tailwind
-- Backend: Express + TypeScript + Prisma + PostgreSQL
-- Package management: npm workspaces
+This documentation reflects current behavior as audited (read-only) before Admin module implementation.
 
-## Tech Stack
-- UI: React 19, React Router, Tailwind CSS
-- API: Express 5, cookie-based auth, role guards
-- Database: PostgreSQL via Prisma ORM
-- Build checks: TypeScript no-emit (`typecheck`/`lint` scripts)
+## Current Architecture Snapshot
+- Frontend routes are protected by auth/role wrappers in `frontend/src/App.tsx`.
+- Backend is split by route groups:
+  - `backend/src/routes/courses.ts`
+  - `backend/src/routes/student.ts`
+  - `backend/src/routes/instructor.ts`
+  - Admin and auth routes in `backend/src/index.ts`
+- Business logic is primarily in services (`backend/src/services/*`).
 
-## Architecture Summary
-- `frontend/src/pages`: route-level pages
-- `frontend/src/components`: reusable UI and shell components
-- `frontend/src/components/ui`: modern shared design system primitives
-- `backend/src/routes`: route grouping by domain (`courses`, `student`, `instructor`)
-- `backend/src/services`: DB/business logic layer
-- `backend/src/controllers`: route handlers for public/shared course and lesson APIs
-- `backend/prisma/schema.prisma`: authoritative data model
+## Auth and Security Model
+- Cookie-first auth (`credentials: include`) with JWT in HTTP-only cookie.
+- `requireAuth` resolves user role from DB on every protected request.
+- Mutating methods (`POST/PATCH/PUT/DELETE`) are origin-checked against `ALLOWED_ORIGINS`.
+- Role guard middleware enforces route-level role constraints.
 
-## Roles and Capabilities
+Known consistency gap:
+- Error response shapes are mixed:
+  - many endpoints return `{ error: string }`
+  - profile validation returns `{ ok: false, error: "VALIDATION_ERROR", message, fieldErrors }`
+
+## Role Model
 - `STUDENT`
-  - Browse courses
-  - Request access to published courses
-  - Access lessons only when enrollment is `ACTIVE`
-  - Track lesson progress
+  - browse published catalog
+  - request access
+  - access lessons only when enrollment is `ACTIVE`
 - `INSTRUCTOR`
-  - Manage own courses and lessons
-  - Review and approve/reject access requests
-  - Submit course deletion requests
+  - manage own courses/lessons via `/instructor/*`
+  - review access requests
+  - submit course deletion requests
 - `ADMIN`
-  - Full instructor capabilities
-  - Manage deletion requests
-  - Hard delete courses
-  - Manage user roles
+  - instructor capabilities plus:
+  - manage roles
+  - approve/reject deletion requests
+  - hard delete courses
+  - delete users with instructor ownership guard
 
-## Enrollment Flow Summary
-Enrollment is state-based on `Enrollment.status`:
-- `REQUESTED`: student submitted access request
-- `ACTIVE`: approved (access granted)
-- `REVOKED`: removed/rejected
+## Canonical Endpoint Set
+- `GET /courses` (published + non-archived catalog)
+- `GET /courses/:id/public` (public-safe detail)
+- `GET /courses/:id` (auth protected, enrollment/role constrained)
+- `GET /courses/:id/lessons` (auth protected, role/enrollment constrained)
+- `POST /courses/:id/request-access` (canonical student request path)
 
-Student request is persisted in `Enrollment` (upsert by `userId + courseId`).
+Deprecated alias:
+- `POST /courses/:id/enroll` (backward compatibility only)
 
-## Requests Flow Summary
-- Student requests access via student endpoint.
-- Instructor/Admin sees pending requests via aggregated instructor endpoint.
-- Instructor/Admin approves/rejects using enrollment status update endpoints.
-- Instructor home and requests page are the primary request management UI.
+## Enrollment and Requests Workflow
+- Student request writes/upserts `Enrollment` with `REQUESTED`.
+- Instructor/Admin sees pending requests via:
+  - `GET /instructor/requests` (aggregated)
+- Approve/reject via:
+  - `POST /instructor/enrollments/:id/approve`
+  - `POST /instructor/enrollments/:id/revoke`
+- Frontend badge system is client-side:
+  - localStorage seen timestamp
+  - no backend unread table
 
-## Canonical API Endpoints
-- `GET /courses/:id/public`
-  - Public preview-safe course metadata for browsing UI.
-- `GET /courses/:id`
-  - Auth-protected course detail; role/enrollment checks apply.
-- `POST /courses/:id/request-access`
-  - Canonical student access request endpoint.
-- `POST /courses/:id/enroll`
-  - Deprecated alias of `request-access` retained for compatibility only; new frontend code must not use it.
+## Course Lifecycle
+- Create draft (`isPublished=false`)
+- Publish/unpublish via instructor endpoints
+- Deletion request workflow:
+  - Instructor submits request
+  - Admin approve -> soft delete (`archivedAt`, `isPublished=false`)
+- Hard delete is admin-only and removes related lessons/progress/enrollments.
 
-## Badge System Summary
-- Lightweight client-side unseen indicator.
-- Pending requests count fetched from instructor requests API.
-- Unseen state is tracked in localStorage timestamp (no backend unread table).
-- Badge/dot clears when user opens requests surfaces.
+## Validation Coverage (Current)
+- Profile update has strict backend validation (`profileValidation.ts`) with field-level errors.
+- Course create/update has trim + max length + direct image URL validation.
+- Instructor lesson routes validate URL format (`http/https` or upload placeholder).
 
-## UI System Summary
-The frontend includes a reusable modern UI system:
-- Tokens: `frontend/src/styles/tokens.css`
-- Shared components:
-  - `GlassCard`
-  - `StatCard`
-  - `Badge`
-  - `NotificationDot`
-  - `SelectPopover`
-- Motion conventions:
-  - fast: 150ms
-  - normal: 200ms
-  - fade/scale dropdown + badge transitions
+Known gap:
+- Public lesson-create route in `lessonController` (`POST /courses/:id/lessons`) uses looser URL handling than instructor route path.
 
-## Migration Checklist (Current)
-- Completed: legacy page-level `Card` usage migrated to `GlassCard`.
-- Completed: Courses filter dropdown migrated to `SelectPopover`.
-- Remaining: continue replacing any future ad-hoc status or stats blocks with `Badge` and `StatCard` during feature work.
+## UI System and Layout
+- Shared token system in `frontend/src/styles/tokens.css`.
+- Shared UI primitives:
+  - `GlassCard`, `StatCard`, `Badge`, `NotificationDot`, `SelectPopover`
+- Shell layout:
+  - sticky floating header
+  - sticky desktop sidebar
+  - mobile drawer below header offset
+
+Known layout risk:
+- Some auth pages use fixed full-screen wrappers (`fixed inset-0 overflow-y-auto`) which may diverge from shell scrolling behavior.
+
+## Admin Milestone Pointer
+See `LMS_DOCS/ADMIN_MILESTONE_PREP.md` for:
+- readiness score
+- missing building blocks
+- pre-admin cleanup checklist.

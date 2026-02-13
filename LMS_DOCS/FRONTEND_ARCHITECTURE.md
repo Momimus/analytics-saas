@@ -1,85 +1,66 @@
 # Frontend Architecture
 
-## Folder Structure
-- `frontend/src/App.tsx`: route definitions
-- `frontend/src/main.tsx`: app bootstrap + providers
-- `frontend/src/pages/*`: route pages
-- `frontend/src/components/*`: shared non-page components
-- `frontend/src/components/ui/*`: modern reusable UI primitives
-- `frontend/src/context/auth.tsx`: auth/session state
-- `frontend/src/lib/*`: API helpers and domain utilities
-- `frontend/src/style.css`: global styles and animation utilities
-- `frontend/src/styles/tokens.css`: design tokens
+## Structure
+- `frontend/src/App.tsx`: route map and route guards
+- `frontend/src/context/auth.tsx`: cookie-session hydration (`/me`)
+- `frontend/src/components/AppShell.tsx`: header/sidebar/mobile drawer shell
+- `frontend/src/components/ui/*`: shared primitives
+- `frontend/src/lib/api.ts`: API wrapper with `credentials: include`
+- `frontend/src/style.css` + `frontend/src/styles/tokens.css`: global theme and motion
 
-## Routing Structure
-Primary routes:
-- `/dashboard` (home for all authenticated roles)
-- `/courses`, `/courses/:id`
-- `/my-courses` (student)
-- `/instructor`, `/instructor/new`, `/instructor/courses/:id`, `/instructor/courses/:id/students`
-- `/instructor/requests` (instructor/admin requests management)
-- auth routes: `/login`, `/register`, `/forgot-password`, `/reset-password`
+## Routing and Access
+- Public-only pages: login/register/forgot/reset
+- Authenticated pages: dashboard, profile, courses, my-courses, lessons
+- Role-gated pages: instructor workspace and requests
+- No frontend Admin panel routes yet.
 
-Route protection:
-- `ProtectedRoute`: authenticated only
-- `RoleProtectedRoute`: authenticated + role-restricted
+## Shared UI System Coverage
+Implemented primitives:
+- `GlassCard`
+- `StatCard`
+- `Badge`
+- `NotificationDot`
+- `SelectPopover`
 
-## Shared UI System
-Core primitives in `frontend/src/components/ui`:
-- `GlassCard`: unified panel/card container for section blocks
-- `StatCard`: standardized KPI tile
-- `Badge`: consistent status/count pills
-- `NotificationDot`: unseen indicator with optional pulse-once
-- `SelectPopover`: custom dropdown (replaces native select where required)
+Legacy status:
+- `frontend/src/components/Card.tsx` still exists as deprecated wrapper to `GlassCard`.
+- No active imports from `components/Card` were found in audited pages.
 
-UI system usage is mandatory for shared patterns. Do not introduce new legacy card wrappers or ad-hoc badge/stat/dropdown styles in pages.
+## Shell Layout System (Current)
+- Sticky header with floating glass card.
+- Desktop sticky sidebar with viewport-relative height behavior.
+- Mobile drawer overlay positioned below header via CSS var offset.
 
-Tokens:
-- Defined in `frontend/src/styles/tokens.css`
-- Imported globally from `frontend/src/style.css`
-- Centralize radius, surfaces, borders, shadows, accent/glow, motion timing
+Important shell variables in `AppShell`:
+- `--app-header-h`
+- `--app-shell-gap`
+- `--app-header-offset`
 
-## Building New Pages Correctly
-When creating new pages:
-1. Use `GlassCard` for content sections.
-2. Use `StatCard` for numeric summaries.
-3. Use `Badge` for statuses/counts.
-4. Use `NotificationDot` for unseen indicators.
-5. Use `SelectPopover` for themed dropdowns.
-6. Keep page logic focused on data fetching + composition, not bespoke visual patterns.
-7. Do not import legacy `Card`; use `GlassCard` directly.
+## Responsiveness Notes (Code-Level Audit)
+- **375x812**: mobile drawer architecture is structurally correct (overlay below header offset).
+- **768x1024**: sidebar and header switch to desktop/tablet shell.
+- **1366x768 / 1920x1080**: sticky sidebar + centered header active.
 
-## Using Shared Components
-### Badge
-- `variant`: `count` or `status`
-- `tone`: `success`, `warn`, `neutral`
-- Use for request counts, publish/draft labels, completion states.
+Known risks:
+- Some auth pages use fixed full-screen wrappers (`fixed inset-0 overflow-y-auto`) outside normal document flow:
+  - `frontend/src/pages/Login.tsx`
+  - `frontend/src/pages/Register.tsx`
+- This can behave differently from shell-based scroll ownership.
 
-### StatCard
-- Props: `label`, `value`, optional `hint`, `icon`
-- Use in dashboard and analytics summary rows.
+## Scroll Ownership
+- Main app uses viewport/body scroll.
+- Sidebar nav has internal scroll only when content exceeds sidebar space.
+- Additional internal scroll containers intentionally exist in:
+  - `CountrySelect` dropdown list
+  - popovers/modals where needed
 
-### SelectPopover
-- Props: `items`, `value`, `onChange`
-- Use for filters and constrained option lists.
-- Built-in active state and animated popover menu.
+## Notification Pattern
+- Pending requests badge/dot uses:
+  - `/instructor/requests` response (`latestPendingAt`, `totalPending`)
+  - localStorage seen timestamp (`lms:requests:lastSeenAt`)
+- No websocket/polling beyond periodic refresh/focus refresh in shell.
 
-## State Management Approach
-- Local component state (`useState`) for page-level concerns.
-- Derived values via `useMemo`.
-- Side effects/data fetch via `useEffect`.
-- Auth state centralized in `AuthProvider`.
-
-## Notification Behavior
-- Pending requests badge is lightweight client-side logic.
-- Data source: instructor requests API summary.
-- Seen marker stored in localStorage timestamp.
-- Badge visibility recomputed from:
-  - latest pending request timestamp
-  - last seen timestamp
-
-## Migration Checklist
-- Verify no imports from `frontend/src/components/Card.tsx` remain.
-- Verify stat/count tiles are `StatCard`.
-- Verify status/count pills are `Badge`.
-- Verify custom filter dropdowns use `SelectPopover`.
+## Frontend Risks to Watch
+- Mixed fixed-position auth pages vs shell flow.
+- Layout tweaks currently rely on hardcoded utility values in `AppShell`.
+- `PublicOnlyRoute` loading panels still use legacy class style (`card-animate` + non-GlassCard markup).

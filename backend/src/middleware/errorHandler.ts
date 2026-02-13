@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { HttpError } from "../utils/httpError.js";
+import { HttpError, sendError } from "../utils/httpError.js";
 
 export function errorHandler(
   err: unknown,
@@ -8,9 +8,9 @@ export function errorHandler(
   _next: NextFunction
 ) {
   if (err instanceof HttpError) {
-    return res.status(err.status).json({ error: err.message });
+    return sendError(res, err.status, err.message, err.code, err.fieldErrors);
   }
 
   console.error(err);
-  return res.status(500).json({ error: "Unexpected server error" });
+  return sendError(res, 500, "Unexpected server error", "INTERNAL_ERROR");
 }

@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { Role } from "@prisma/client";
 import prisma from "../lib/prisma.js";
+import { sendError } from "../utils/httpError.js";
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "";
 const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? "auth_token";
@@ -37,7 +38,7 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
   const token = cookieToken ?? headerToken;
 
   if (!token) {
-    return res.status(401).json({ error: "Missing auth token" });
+    return sendError(res, 401, "Missing auth token", "UNAUTHORIZED");
   }
 
   try {
@@ -47,22 +48,22 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
       select: { id: true, role: true },
     });
     if (!user) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return sendError(res, 401, "Unauthorized", "UNAUTHORIZED");
     }
     req.user = { id: user.id, role: user.role };
     return next();
   } catch (error) {
-    return res.status(401).json({ error: "Invalid token" });
+    return sendError(res, 401, "Invalid token", "UNAUTHORIZED");
   }
 }
 
 export function requireRole(roles: Role[]) {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
-      return res.status(401).json({ error: "Unauthorized" });
+      return sendError(res, 401, "Unauthorized", "UNAUTHORIZED");
     }
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ error: "Forbidden" });
+      return sendError(res, 403, "Forbidden", "FORBIDDEN");
     }
     return next();
   };

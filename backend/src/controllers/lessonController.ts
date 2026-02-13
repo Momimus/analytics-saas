@@ -3,14 +3,23 @@ import { EnrollmentStatus, Role } from "@prisma/client";
 import prisma from "../lib/prisma.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { HttpError, assertNonEmptyString } from "../utils/httpError.js";
+import { assertHttpOrUploadUrl } from "../utils/url.js";
 import type { AuthRequest } from "../middleware/auth.js";
 import { getCourseById, getCourseByIdUnrestricted } from "../services/courseService.js";
 import { createLesson, listLessonsByCourseWithProgress } from "../services/lessonService.js";
 import { buildUploadPlaceholder } from "../services/uploadService.js";
 
-function resolveOptionalUrl(value: unknown) {
+function resolveOptionalLessonUrl(value: unknown, label: "Video URL" | "PDF URL") {
   if (typeof value === "string" && value.trim().length > 0) {
-    return value.trim();
+    const normalized = value.trim();
+    if (normalized.length > 500) {
+      throw new HttpError(400, `Field must be at most 500 characters`);
+    }
+    assertHttpOrUploadUrl(
+      normalized,
+      `${label} must be an absolute http(s) URL or uploaded file path`
+    );
+    return normalized;
   }
   return null;
 }
@@ -67,10 +76,10 @@ export const postCourseLesson = asyncHandler(async (req: AuthRequest, res: Respo
   }
 
   const title = assertNonEmptyString(req.body?.title, "Title is required");
-  const videoUrl = resolveOptionalUrl(req.body?.videoUrl);
-  const pdfUrl = resolveOptionalUrl(req.body?.pdfUrl);
-  const videoFileName = resolveOptionalUrl(req.body?.videoFileName);
-  const pdfFileName = resolveOptionalUrl(req.body?.pdfFileName);
+  const videoUrl = resolveOptionalLessonUrl(req.body?.videoUrl, "Video URL");
+  const pdfUrl = resolveOptionalLessonUrl(req.body?.pdfUrl, "PDF URL");
+  const videoFileName = typeof req.body?.videoFileName === "string" ? req.body.videoFileName.trim() : null;
+  const pdfFileName = typeof req.body?.pdfFileName === "string" ? req.body.pdfFileName.trim() : null;
 
   const resolvedVideoUrl = videoUrl ?? (videoFileName ? buildUploadPlaceholder("video", videoFileName) : null);
   const resolvedPdfUrl = pdfUrl ?? (pdfFileName ? buildUploadPlaceholder("pdf", pdfFileName) : null);

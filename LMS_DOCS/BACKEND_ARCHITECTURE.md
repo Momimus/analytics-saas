@@ -1,73 +1,104 @@
 # Backend Architecture
 
 ## Folder Structure
-- `backend/src/index.ts`: app setup, middleware wiring, auth/admin endpoints
-- `backend/src/routes/*`: route modules (`courses`, `student`, `instructor`)
-- `backend/src/controllers/*`: shared/public route handlers
-- `backend/src/services/*`: business logic and Prisma access
-- `backend/src/middleware/*`: auth, async wrapper, error handler
-- `backend/src/utils/*`: shared validation/error helpers
-- `backend/prisma/schema.prisma`: data model
-- `backend/prisma/migrations/*`: migration history
+- `backend/src/index.ts`: app bootstrap, auth/admin endpoints, middleware wiring
+- `backend/src/routes/*`: courses, student, instructor
+- `backend/src/controllers/*`: shared controllers for course/lesson route group
+- `backend/src/services/*`: Prisma/business logic
+- `backend/src/middleware/*`: auth, async wrapper, error handling
+- `backend/src/utils/*`: URL/assert helpers
+- `backend/src/validation/*`: payload validators (profile currently)
 
-## Route Grouping
-- `/courses`:
-  - public catalog and public-safe detail
-  - auth-protected detail/lessons for role-aware access
-- student routes:
-  - request access
-  - enrollments, my courses, my progress
-  - lesson complete/incomplete
-- `/instructor`:
-  - course and lesson CRUD (role/ownership constrained)
-  - requests listing and status decisions
-  - students roster
-  - publish/unpublish
-- admin routes (in `index.ts`):
-  - role updates
-  - deletion request decisions
-  - hard delete
+## Security Model
+- Auth: JWT in HTTP-only cookie (plus bearer fallback in middleware).
+- `requireAuth` always refreshes role from DB.
+- Role gates via `requireRole`.
+- Mutating origin check in global middleware (`POST/PATCH/PUT/DELETE`).
 
-## Middleware System
-- `requireAuth`:
-  - reads cookie/bearer token
-  - verifies JWT
-  - resolves live role from DB
-- `requireRole([...])`:
-  - role authorization guard
-- CSRF/origin guard:
-  - mutating methods validated against allowed origins
-- centralized error handler:
-  - typed `HttpError` + fallback 500
+### Security/Consistency Findings
+- CSRF protection is origin-only (no anti-CSRF token pattern).
+- Error format is not unified:
+  - `HttpError` path returns `{ error }`
+  - profile validation returns `{ ok:false, error:"VALIDATION_ERROR", message, fieldErrors }`
+- `POST /auth/register` returns a JWT in body but does not set auth cookie, while login does set cookie.
 
-## Role-Based Access Control
-- Student-only operations guarded with `requireRole([STUDENT])`.
-- Instructor operations guarded with `requireRole([INSTRUCTOR, ADMIN])`.
-- Ownership checks in services for instructor-scoped data.
-- Admin bypass allowed where intentional.
+## Authorization Model
+- Roles: `STUDENT`, `INSTRUCTOR`, `ADMIN`
+- Instructor routes are scoped with ownership checks in services.
+- Admin is intentionally allowed to bypass instructor ownership constraints in selected service calls.
+- Public course routes are constrained to published + non-archived data.
 
-## Enrollment Lifecycle
-`Enrollment.status`:
-- `REQUESTED` -> request submitted
-- `ACTIVE` -> approved access
-- `REVOKED` -> rejected/retracted
+## Route Surface (Current)
 
-State transitions currently occur via:
-- Student request endpoint (upsert to `REQUESTED`)
-- Instructor/Admin approve/revoke endpoints
+### Auth + Session (`index.ts`)
+- `POST /auth/register`
+- `POST /auth/login`
+- `POST /auth/logout`
+- `POST /auth/forgot-password`
+- `POST /auth/reset-password`
+- `GET /me`
+- `PATCH /me`
 
-## Instructor Requests Aggregation Endpoint
+### Public/Shared Course Routes (`routes/courses.ts`)
+- `GET /courses`
+- `GET /courses/:id/public`
+- `GET /courses/:id` (auth required)
+- `GET /courses/:id/lessons` (auth required)
+- `POST /courses/:id/lessons` (INSTRUCTOR/ADMIN)
+- `POST /courses` (INSTRUCTOR/ADMIN)
+
+### Student (`routes/student.ts`)
+- `POST /courses/:id/request-access` (canonical)
+- `POST /courses/:id/enroll` (deprecated alias)
+- `GET /my/enrollments`
+- `GET /my/courses`
+- `GET /my/progress`
+- `GET /lessons/:id`
+- `POST /lessons/:id/complete`
+- `POST /lessons/:id/uncomplete`
+
+### Instructor (`routes/instructor.ts`)
 - `GET /instructor/requests`
-- Optional `limit` query
-- Returns:
-  - `totalPending`
-  - `latestPendingAt`
-  - `requests[]` including minimal `course` + `user` fields
-- Ownership constrained for instructors; admin can view all pending requests.
+- `GET /instructor/courses`
+- `GET /instructor/courses/:id`
+- `PATCH /instructor/courses/:id`
+- `POST /instructor/courses`
+- `GET /instructor/courses/:id/lessons`
+- `POST /instructor/courses/:id/lessons`
+- `PATCH /instructor/lessons/:id`
+- `DELETE /instructor/lessons/:id`
+- `POST /instructor/courses/:id/publish`
+- `POST /instructor/courses/:id/unpublish`
+- `GET /instructor/courses/:id/requests`
+- `POST /instructor/enrollments/:id/approve`
+- `POST /instructor/enrollments/:id/revoke`
+- `GET /instructor/courses/:id/students`
+- `POST /instructor/courses/:id/delete-request`
 
-## Security Summary
-- Auth: JWT + HTTP-only cookie
-- Session usage: frontend sends `credentials: include`
-- CORS + CSRF origin checks use allowlist configuration
-- Role and ownership controls enforced in route + service layers
-- URL validation exists for direct image URL constraints
+### Admin (`index.ts`)
+- `POST /admin/users/:id/role`
+- `DELETE /admin/users/:id`
+- `GET /admin/delete-requests`
+- `POST /admin/delete-requests/:id/approve`
+- `POST /admin/delete-requests/:id/reject`
+- `DELETE /admin/courses/:id/hard-delete`
+
+## Frontend Usage Notes
+- Admin routes are currently not consumed by frontend routes/pages.
+- `POST /courses/:id/enroll` is not used by frontend and marked deprecated.
+- `POST /courses/:id/lessons` appears unused by frontend (instructor UI uses `/instructor/courses/:id/lessons`).
+- `GET /courses/:id` appears currently unused by frontend course detail page (which uses `/public` + `/lessons`).
+
+## Validation Coverage Snapshot
+- Strong:
+  - profile payload (`validation/profileValidation.ts`)
+  - course create/update string lengths + image URL constraints
+  - instructor lesson URL validation (`assertHttpOrUploadUrl`)
+- Weaker/inconsistent:
+  - `lessonController` route path `POST /courses/:id/lessons` uses looser optional URL handling
+  - mixed validation response shapes
+
+## Performance/Structure Risks
+- Multiple requests on dashboard (`/instructor/courses` + `/instructor/requests`) are expected and bounded.
+- No obvious N+1 in instructor requests aggregation (single transaction query set).
+- Hardcoded response DTO shapes are mostly intentional but not formally centralized across all route groups.

@@ -1,57 +1,52 @@
 # Development Guidelines
 
-## Coding Standards
-- Keep TypeScript strict and explicit.
-- Avoid `any`; prefer typed DTOs and utility types.
-- Use small, focused components/services.
-- Validate external input close to route boundaries.
-- Keep business logic in services, not route handlers where possible.
+## Non-Negotiables
+- Keep cookie-auth model intact (`credentials: include` on frontend).
+- Do not bypass role/ownership checks in service layer.
+- Keep canonical endpoint usage (avoid reviving deprecated aliases).
+- Keep docs updated in `LMS_DOCS` for behavior or API changes.
 
-## Adding New Backend Routes
-1. Add route in appropriate module (`student`, `instructor`, `courses`).
-2. Apply `requireAuth` and `requireRole` as needed.
-3. Add ownership checks in service layer for instructor-scoped resources.
-4. Return minimal response shape needed by frontend.
-5. Keep DB access inside service functions.
-6. Add/update docs in `LMS_DOCS` after behavior changes.
+## Backend Guidance
+1. Validate input at route boundary with explicit type checks.
+2. Prefer service-layer ownership checks for instructor-scoped resources.
+3. Keep response DTOs intentional and minimal.
+4. Prefer consistent error format for new endpoints.
 
-## Adding New UI Components
-1. Add reusable primitives under `frontend/src/components/ui`.
-2. Use token variables from `frontend/src/styles/tokens.css`.
-3. Keep animation timing on shared token durations.
-4. Expose small prop APIs; avoid one-off page coupling.
+### Validation Baseline
+- Profile: strict validator with field errors.
+- Course create/update: trim + max length + image URL validation.
+- Lesson create/update: trim + max length + URL validation.
+- If adding new mutating payload fields, add backend-first validation.
 
-## Shared UI vs Custom UI
-Use shared components when:
-- rendering section cards/panels
-- rendering KPI/stat tiles
-- rendering status/count badges
-- rendering unseen indicators
-- rendering themed dropdowns
+## Frontend Guidance
+1. Use `apiFetch` and preserve cookie auth.
+2. Surface backend validation field errors in forms.
+3. Reuse shared UI primitives for cards/stats/badges/dropdowns.
+4. Keep shell/layout changes in `AppShell` and global style files only.
 
-Use page-specific markup only for domain-specific layout and data composition.
+## UI System Rules
+- Required shared components for common patterns:
+  - `GlassCard`
+  - `StatCard`
+  - `Badge`
+  - `NotificationDot`
+  - `SelectPopover`
+- `components/Card.tsx` is deprecated wrapper and should not be imported in new code.
 
-## Keeping Design System Consistent
-- Prefer component props for variation over duplicated Tailwind blocks.
-- If multiple pages need same visual pattern, move it to shared UI components.
-- Update token values centrally instead of page-level class drift.
+## API Canonicality Rules
+- Use `POST /courses/:id/request-access` for student requests.
+- Treat `POST /courses/:id/enroll` as deprecated alias.
+- Use `GET /courses/:id/public` for public-safe preview usage.
 
-## State and Effects
-- Keep fetch side effects in `useEffect`.
-- Keep derived values in `useMemo`.
-- Keep transient UI states local.
-- For lightweight cross-page indicators, use deterministic localStorage + events only when backend unread tracking is out of scope.
-
-## Documentation Update Rule
-After major change, update:
-- `README_PROJECT.md` for product-level behavior
-- `FRONTEND_ARCHITECTURE.md` or `BACKEND_ARCHITECTURE.md` for structural changes
-- `DATA_MODEL.md` for schema/state machine changes
-- `CHANGELOG.md` for milestone summary
+## Admin Milestone Discipline
+Before adding Admin UI pages:
+1. Confirm route response format consistency plan.
+2. Confirm any admin endpoint DTOs are intentional and documented.
+3. Confirm ownership and destructive actions are tested against role constraints.
+4. Update `LMS_DOCS/ADMIN_MILESTONE_PREP.md` when readiness assumptions change.
 
 ## Pre-PR Checklist
-- Did you use shared UI primitives (`GlassCard`, `StatCard`, `Badge`, `NotificationDot`, `SelectPopover`)?
-- Did you avoid new legacy `Card` usage?
-- Did you keep canonical endpoint usage (`/courses/:id/public` preview, `/courses/:id/request-access` request flow)?
-- Did you update `LMS_DOCS/CHANGELOG.md`?
-- Did you update docs for any API or UI behavior change?
+- Did you preserve auth/role security assumptions?
+- Did you add backend validation for new user input?
+- Did you avoid deprecated endpoint usage?
+- Did you update `README_PROJECT.md`, relevant architecture docs, and `CHANGELOG.md`?
