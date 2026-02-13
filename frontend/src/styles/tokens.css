@@ -14,13 +14,61 @@
   --ui-shadow-glow: 0 0 0 1px color-mix(in srgb, var(--accent) 26%, transparent),
     0 14px 34px color-mix(in srgb, var(--accent) 22%, transparent);
 
+  --ui-text-primary: var(--text);
+  --ui-text-secondary: color-mix(in srgb, var(--text) 76%, var(--text-muted) 24%);
   --ui-text-muted: var(--text-muted);
-  --ui-text-subtle: color-mix(in srgb, var(--text-muted) 76%, var(--text) 24%);
+  --ui-text-subtle: color-mix(in srgb, var(--text-muted) 78%, var(--text) 22%);
 
   --ui-accent: var(--accent);
   --ui-accent-soft: color-mix(in srgb, var(--accent) 22%, transparent);
   --ui-accent-glow: color-mix(in srgb, var(--accent) 36%, transparent);
 
+  --ui-badge-text: var(--ui-text-primary);
+  --ui-badge-success-bg: color-mix(in srgb, #34d399 22%, transparent);
+  --ui-badge-success-border: color-mix(in srgb, #34d399 38%, transparent);
+  --ui-badge-success-text: #d1fae5;
+  --ui-badge-warning-bg: color-mix(in srgb, #f59e0b 22%, transparent);
+  --ui-badge-warning-border: color-mix(in srgb, #f59e0b 36%, transparent);
+  --ui-badge-warning-text: #fde68a;
+  --ui-badge-neutral-bg: color-mix(in srgb, #94a3b8 22%, transparent);
+  --ui-badge-neutral-border: color-mix(in srgb, #94a3b8 34%, transparent);
+  --ui-badge-neutral-text: #e2e8f0;
+
+  --ui-dot-bg: #34d399;
+  --ui-dot-ring: color-mix(in srgb, #34d399 36%, transparent);
+
   --ui-motion-fast: 150ms;
   --ui-motion-normal: 200ms;
+}
+
+:root[data-theme="light"] {
+  --ui-glass-surface: color-mix(in srgb, #f8fafc 86%, transparent);
+  --ui-glass-panel: color-mix(in srgb, #f1f5f9 92%, transparent);
+  --ui-glass-elevated: color-mix(in srgb, #f8fafc 95%, transparent);
+  --ui-border-soft: color-mix(in srgb, #94a3b8 44%, transparent);
+  --ui-border-strong: color-mix(in srgb, #94a3b8 60%, transparent);
+
+  --ui-shadow-sm: 0 8px 24px rgba(15, 23, 42, 0.08);
+  --ui-shadow-md: 0 18px 42px rgba(15, 23, 42, 0.1);
+  --ui-shadow-glow: 0 0 0 1px color-mix(in srgb, var(--accent) 16%, transparent),
+    0 10px 30px color-mix(in srgb, var(--accent) 14%, transparent);
+
+  --ui-text-primary: #0f172a;
+  --ui-text-secondary: #1f2937;
+  --ui-text-muted: #475569;
+  --ui-text-subtle: #64748b;
+
+  --ui-badge-text: #0f172a;
+  --ui-badge-success-bg: color-mix(in srgb, #10b981 18%, white 82%);
+  --ui-badge-success-border: color-mix(in srgb, #10b981 42%, transparent);
+  --ui-badge-success-text: #065f46;
+  --ui-badge-warning-bg: color-mix(in srgb, #f59e0b 18%, white 82%);
+  --ui-badge-warning-border: color-mix(in srgb, #f59e0b 44%, transparent);
+  --ui-badge-warning-text: #92400e;
+  --ui-badge-neutral-bg: color-mix(in srgb, #64748b 14%, white 86%);
+  --ui-badge-neutral-border: color-mix(in srgb, #64748b 42%, transparent);
+  --ui-badge-neutral-text: #334155;
+
+  --ui-dot-bg: #059669;
+  --ui-dot-ring: color-mix(in srgb, #059669 28%, transparent);
 }

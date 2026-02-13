@@ -44,13 +44,14 @@
 }
 
 html {
-  scrollbar-gutter: stable both-edges;
+  scrollbar-gutter: stable;
+  background-color: var(--bg);
 }
 
 html,
 body,
 #app {
-  height: 100%;
+  min-height: 100%;
 }
 
 body {
@@ -60,7 +61,8 @@ body {
     radial-gradient(900px 500px at 85% 0%, rgba(56, 189, 248, 0.15), transparent 55%),
     linear-gradient(160deg, #0b0f19 0%, #0e1627 45%, #0b0f19 100%);
   color: var(--text);
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 * {
@@ -90,7 +92,7 @@ body {
 }
 
 .scroll-gutter-stable {
-  scrollbar-gutter: stable both-edges;
+  scrollbar-gutter: stable;
 }
 
 :root[data-theme="light"] body {
@@ -154,10 +156,10 @@ body {
 
 @keyframes uiDotPulseOnce {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ui-accent) 42%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ui-dot-bg) 30%, transparent);
   }
   100% {
-    box-shadow: 0 0 0 10px transparent;
+    box-shadow: 0 0 0 8px transparent;
   }
 }
 

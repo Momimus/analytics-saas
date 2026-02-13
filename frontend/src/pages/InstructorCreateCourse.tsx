@@ -5,6 +5,7 @@ import Input from "../components/Input";
 import GlassCard from "../components/ui/GlassCard";
 import { apiFetch } from "../lib/api";
 import { isDirectImageUrl } from "../lib/media";
+import { formLabelClass, formLabelTextClass, formTextareaLargeClass } from "../lib/uiClasses";
 
 type CoursePayload = {
   title: string;
@@ -27,7 +28,7 @@ export default function InstructorCreateCoursePage() {
   return (
     <GlassCard title="Create Course" subtitle="Start a new draft course." className="w-full">
       <form
-        className="grid gap-4"
+        className="grid gap-3.5"
         onSubmit={async (event) => {
           event.preventDefault();
           setError(null);
@@ -66,10 +67,10 @@ export default function InstructorCreateCoursePage() {
           onChange={(event) => setTitle(event.target.value)}
           required
         />
-        <label className="grid gap-2 text-sm font-medium text-[var(--text-muted)]">
-          <span className="text-[var(--text)]">Description</span>
+        <label className={formLabelClass}>
+          <span className={formLabelTextClass}>Description</span>
           <textarea
-            className="min-h-[100px] w-full rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 px-4 py-3 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+            className={formTextareaLargeClass}
             name="description"
             placeholder="Short description"
             value={description}

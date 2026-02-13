@@ -170,9 +170,10 @@ export default function AppShell({ children }: PropsWithChildren) {
   };
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-[var(--bg)] text-[var(--text)]">
-      <header className="shrink-0 border-b border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 backdrop-blur">
-        <div className="mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between px-4 md:px-6 lg:px-8">
+    <div className="flex min-h-screen flex-col bg-[var(--bg)] text-[var(--text)] [--app-header-h:3.5rem] [--app-shell-gap:0.75rem] md:[--app-shell-gap:1rem] [--app-header-offset:calc(var(--app-header-h)+var(--app-shell-gap))]">
+      <header className="sticky top-0 z-50 px-3 pt-3 md:-mb-0.5 md:px-4 md:pt-4">
+        <div className="mx-auto w-full md:w-[88%] md:max-w-[1280px]">
+          <div className="flex h-14 items-center justify-between rounded-2xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-glass-panel)] px-4 shadow-[0_10px_40px_rgba(0,0,0,0.35)] backdrop-blur-md md:px-5">
           <div className="flex items-center gap-3">
             <span className="grid h-9 w-9 place-items-center rounded-[var(--radius-md)] bg-[var(--accent)]/15 text-[var(--accent)] shadow-[var(--shadow-accent)]">
               LMS
@@ -271,14 +272,15 @@ export default function AppShell({ children }: PropsWithChildren) {
               )}
             </button>
           </div>
+          </div>
         </div>
       </header>
 
       {isLoggedIn ? (
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          <div className="mx-auto flex min-h-0 w-full max-w-[1200px] flex-1 gap-6 px-4 py-6 md:px-6 lg:px-8">
-            <aside className="hidden w-64 shrink-0 rounded-[var(--radius-xl)] border border-[color:var(--border)] bg-[color:var(--surface)]/70 p-4 shadow-[var(--shadow-card)] md:block">
-              <div className="grid gap-2">
+        <div className="flex flex-1">
+          <div className="mx-auto flex w-full max-w-[1200px] flex-1 items-start gap-6 px-4 py-4 md:px-6 md:py-4 lg:px-8">
+            <aside className="sticky top-[var(--app-header-offset)] hidden w-64 min-h-[calc(100dvh-var(--app-header-offset)-0.75rem)] shrink-0 self-start rounded-[var(--radius-xl)] border border-[color:var(--border)] bg-[color:var(--surface)]/70 p-4 shadow-[var(--shadow-card)] md:flex md:flex-col">
+              <nav className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
                 {navItems.map((item) => {
                   const isActive = isActivePath(item.to);
                   const showBadge = isInstructorRole && item.to === "/dashboard" && showRequestsBadge;
@@ -286,7 +288,7 @@ export default function AppShell({ children }: PropsWithChildren) {
                     <Link
                       key={item.to}
                       to={item.to}
-                      className={`rounded-[var(--radius-md)] px-4 py-3 text-sm font-semibold transition ${
+                      className={`rounded-[var(--radius-md)] px-3.5 py-2.5 text-sm font-medium transition ${
                         isActive
                           ? "bg-[var(--accent)] text-[var(--accent-contrast)]"
                           : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[color:var(--surface-strong)]"
@@ -304,19 +306,23 @@ export default function AppShell({ children }: PropsWithChildren) {
                     </Link>
                   );
                 })}
+              </nav>
+              <div className="mt-3 border-t border-[color:var(--ui-border-soft)] pt-3 text-xs text-[var(--ui-text-muted)]">
+                Learning Suite v1
               </div>
             </aside>
-            <main className="page-fade scroll-gutter-stable min-h-0 flex-1 overflow-y-auto pb-10 pr-2 md:pr-3">{children}</main>
+            <main className="page-fade scroll-gutter-stable min-w-0 flex-1 pb-8">{children}</main>
           </div>
         </div>
       ) : (
-        <main className="page-fade scroll-gutter-stable flex-1 overflow-y-auto pr-2 md:pr-3">{children}</main>
+        <main className="page-fade scroll-gutter-stable flex-1">{children}</main>
       )}
 
       <div
-        className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity md:hidden ${
+        className={`fixed left-0 right-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity md:hidden ${
           isSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
+        style={{ top: "var(--app-header-offset)", height: "calc(100dvh - var(--app-header-offset))" }}
       >
         <div
           ref={mobileSidebarRef}

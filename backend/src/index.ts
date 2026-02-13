@@ -4,7 +4,6 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { parsePhoneNumberFromString, type CountryCode } from "libphonenumber-js";
 import { Role } from "@prisma/client";
 import prisma from "./lib/prisma.js";
 import courseRoutes from "./routes/courses.js";
@@ -13,6 +12,7 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import { requireAuth, requireRole, type AuthRequest } from "./middleware/auth.js";
 import studentRoutes from "./routes/student.js";
 import { hardDeleteCourse } from "./services/instructorService.js";
+import { validateProfileUpdatePayload } from "./validation/profileValidation.js";
 
 const app = express();
 
@@ -320,54 +320,19 @@ app.patch("/me", requireAuth, async (req: AuthRequest, res) => {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const { fullName, phone, address, phoneCountry } = req.body as {
-    fullName?: string;
-    phone?: string;
-    address?: string;
-    phoneCountry?: string;
-  };
-
-  if (typeof fullName === "string" && fullName.length > 80) {
-    return res.status(400).json({ error: "Full name must be at most 80 characters" });
-  }
-  if (typeof phone === "string" && phone.length > 30) {
-    return res.status(400).json({ error: "Phone must be at most 30 characters" });
-  }
-  if (typeof address === "string" && address.length > 200) {
-    return res.status(400).json({ error: "Address must be at most 200 characters" });
-  }
-
-  const normalizedCountry =
-    typeof phoneCountry === "string" && phoneCountry.trim().length > 0
-      ? phoneCountry.trim().toUpperCase()
-      : null;
-  const hasPhone = typeof phone === "string" && phone.trim().length > 0;
-
-  let phoneE164: string | null = null;
-
-  if (hasPhone) {
-    if (!normalizedCountry) {
-      return res.status(400).json({ error: "Phone country is required when phone is provided" });
-    }
-    if (!/^[A-Z]{2}$/.test(normalizedCountry)) {
-      return res.status(400).json({ error: "Phone country must be a valid ISO-2 code" });
-    }
-    const parsed = parsePhoneNumberFromString(phone, normalizedCountry as CountryCode);
-    if (!parsed || !parsed.isValid()) {
-      return res.status(400).json({ error: "Phone number is invalid for selected country" });
-    }
-    phoneE164 = parsed.number;
+  const validation = validateProfileUpdatePayload(req.body as Record<string, unknown>);
+  if (!validation.ok) {
+    return res.status(400).json({
+      ok: false,
+      error: "VALIDATION_ERROR",
+      message: validation.message,
+      fieldErrors: validation.fieldErrors,
+    });
   }
 
   const updated = await prisma.user.update({
     where: { id: req.user.id },
-    data: {
-      fullName: typeof fullName === "string" ? fullName.trim() : undefined,
-      phone: typeof phone === "string" ? (hasPhone ? phone.trim() : null) : undefined,
-      phoneCountry: phone === undefined ? undefined : hasPhone ? normalizedCountry : null,
-      phoneE164: phone === undefined ? undefined : phoneE164,
-      address: typeof address === "string" ? address.trim() : undefined,
-    },
+    data: validation.data,
     select: {
       id: true,
       email: true,

@@ -6,6 +6,7 @@ import Badge from "../components/ui/Badge";
 import GlassCard from "../components/ui/GlassCard";
 import { apiFetch } from "../lib/api";
 import { isDirectImageUrl } from "../lib/media";
+import { formLabelClass, formLabelTextClass, formTextareaLargeClass } from "../lib/uiClasses";
 
 type Course = {
   id: string;
@@ -119,7 +120,7 @@ export default function InstructorCourseEditorPage() {
         {loading ? (
           <p className="text-sm text-[var(--text-muted)]">Loading...</p>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid gap-3.5">
             <div className="flex flex-wrap items-center gap-2 text-xs">
               <Badge tone={course?.isPublished ? "success" : "neutral"}>
                 {course?.isPublished ? "Published" : "Draft"}
@@ -128,7 +129,7 @@ export default function InstructorCourseEditorPage() {
               <span className="text-[var(--text-muted)]">Enrollments: {course?.enrollmentsCount ?? 0}</span>
             </div>
             <form
-              className="grid gap-4"
+              className="grid gap-3.5"
               onSubmit={async (event) => {
                 event.preventDefault();
                 if (savingCourse) return;
@@ -166,10 +167,10 @@ export default function InstructorCourseEditorPage() {
                 onChange={(event) => setDraft((prev) => ({ ...prev, title: event.target.value }))}
                 required
               />
-              <label className="grid gap-2 text-sm font-medium text-[var(--text-muted)]">
-                <span className="text-[var(--text)]">Description</span>
+              <label className={formLabelClass}>
+                <span className={formLabelTextClass}>Description</span>
                 <textarea
-                  className="min-h-[100px] w-full rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 px-4 py-3 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+                  className={formTextareaLargeClass}
                   value={draft.description}
                   onChange={(event) => setDraft((prev) => ({ ...prev, description: event.target.value }))}
                 />
@@ -250,7 +251,7 @@ export default function InstructorCourseEditorPage() {
         ) : (
           <div className="grid gap-4">
             <form
-              className="grid gap-3 rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/60 p-3"
+              className="grid gap-2.5 rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/60 p-3"
               onSubmit={async (event) => {
                 event.preventDefault();
                 if (savingLesson || !newLesson.title.trim()) return;
@@ -348,7 +349,7 @@ export default function InstructorCourseEditorPage() {
                               setEditingLesson((prev) => ({ ...prev, title: event.target.value }))
                             }
                           />
-                          <div className="grid gap-3 md:grid-cols-2">
+                          <div className="grid gap-2.5 md:grid-cols-2">
                             <Input
                               type="url"
                               name={`edit-video-${lesson.id}`}
@@ -382,8 +383,8 @@ export default function InstructorCourseEditorPage() {
                           <div className="grid gap-1">
                             <p className="text-sm font-semibold text-[var(--text)]">{lesson.title}</p>
                             <div className="grid gap-1 text-xs text-[var(--text-muted)]">
-                              {lesson.videoUrl && <span>Video: {lesson.videoUrl}</span>}
-                              {lesson.pdfUrl && <span>PDF: {lesson.pdfUrl}</span>}
+                              {lesson.videoUrl && <span className="truncate">Video: {lesson.videoUrl}</span>}
+                              {lesson.pdfUrl && <span className="truncate">PDF: {lesson.pdfUrl}</span>}
                               <span>Created: {new Date(lesson.createdAt).toLocaleString()}</span>
                             </div>
                           </div>

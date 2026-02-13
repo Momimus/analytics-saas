@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
+import { formSelectTriggerCompactClass } from "../../lib/uiClasses";
 
 type Item = {
   label: string;
@@ -74,7 +75,7 @@ export default function SelectPopover({ items, value, onChange, className }: Sel
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex min-w-44 items-center justify-between gap-3 rounded-full border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-glass-surface)] px-4 py-2 text-sm text-[var(--text)] shadow-[var(--ui-shadow-sm)] transition duration-[var(--ui-motion-fast)] hover:bg-[color:var(--surface)]/70"
+        className={`${formSelectTriggerCompactClass} min-w-44 hover:bg-[color:var(--ui-glass-elevated)]`}
       >
         <span>{activeLabel}</span>
         <svg

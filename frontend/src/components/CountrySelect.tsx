@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CountryOption } from "../lib/countries";
+import { formInputCompactClass, formSelectTriggerCompactClass } from "../lib/uiClasses";
 
 type CountrySelectProps = {
   value: string;
@@ -79,21 +80,21 @@ export default function CountrySelect({ value, onChange, countries, placeholder 
             handleSelect(filtered[0].iso2);
           }
         }}
-        className="flex w-full items-center justify-between rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 px-4 py-3 text-sm text-[var(--text)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+        className={formSelectTriggerCompactClass}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
-        <span className={selected ? "text-[var(--text)]" : "text-[var(--text-muted)]"}>
+        <span className={selected ? "text-[var(--ui-text-primary)]" : "text-[var(--ui-text-muted)]"}>
           {selected ? `${selected.label} (${selected.dial})` : placeholder ?? "Select country"}
         </span>
-        <span className="text-[var(--text-muted)]">?</span>
+        <span className="text-[var(--ui-text-muted)]">&#9662;</span>
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 top-full z-30 mt-2 w-full rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)]/95 shadow-[var(--shadow-card)]">
-          <div className="border-b border-[color:var(--border)] p-3">
+        <div className="absolute left-0 top-full z-30 mt-2 w-full rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-glass-elevated)] shadow-[var(--ui-shadow-md)] backdrop-blur-md">
+          <div className="border-b border-[color:var(--ui-border-soft)] p-2.5">
             <input
-              className="w-full rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+              className={formInputCompactClass}
               placeholder="Search country or code"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -103,7 +104,7 @@ export default function CountrySelect({ value, onChange, countries, placeholder 
           <div className="max-h-64 overflow-y-auto p-2">
             {mostUsed.length > 0 && (
               <div className="mb-2">
-                <p className="px-2 py-1 text-xs uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                <p className="px-2 py-1 text-xs uppercase tracking-[0.2em] text-[var(--ui-text-muted)]">
                   Most used
                 </p>
                 {mostUsed.map((country) => (
@@ -111,11 +112,11 @@ export default function CountrySelect({ value, onChange, countries, placeholder 
                     key={country.iso2}
                     type="button"
                     onClick={() => handleSelect(country.iso2)}
-                    className="flex w-full items-center justify-between rounded-[var(--radius-md)] px-3 py-2 text-sm text-[var(--text)] transition hover:bg-[color:var(--surface-strong)]"
+                    className="flex h-9 w-full items-center justify-between rounded-[var(--ui-radius-md)] px-3 text-sm text-[var(--ui-text-primary)] transition hover:bg-[color:var(--ui-glass-surface)]"
                     role="option"
                   >
                     <span>{country.label}</span>
-                    <span className="text-[var(--text-muted)]">{country.dial}</span>
+                    <span className="text-[var(--ui-text-muted)]">{country.dial}</span>
                   </button>
                 ))}
               </div>
@@ -126,15 +127,15 @@ export default function CountrySelect({ value, onChange, countries, placeholder 
                   key={country.iso2}
                   type="button"
                   onClick={() => handleSelect(country.iso2)}
-                  className="flex w-full items-center justify-between rounded-[var(--radius-md)] px-3 py-2 text-sm text-[var(--text)] transition hover:bg-[color:var(--surface-strong)]"
+                  className="flex h-9 w-full items-center justify-between rounded-[var(--ui-radius-md)] px-3 text-sm text-[var(--ui-text-primary)] transition hover:bg-[color:var(--ui-glass-surface)]"
                   role="option"
                 >
                   <span>{country.label}</span>
-                  <span className="text-[var(--text-muted)]">{country.dial}</span>
+                  <span className="text-[var(--ui-text-muted)]">{country.dial}</span>
                 </button>
               ))}
               {rest.length === 0 && mostUsed.length === 0 && (
-                <p className="px-3 py-2 text-sm text-[var(--text-muted)]">No matches found.</p>
+                <p className="px-3 py-2 text-sm text-[var(--ui-text-muted)]">No matches found.</p>
               )}
             </div>
           </div>

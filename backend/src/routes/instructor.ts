@@ -3,7 +3,7 @@ import { EnrollmentStatus, Role } from "@prisma/client";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { requireAuth, requireRole, type AuthRequest } from "../middleware/auth.js";
 import { HttpError, assertNonEmptyString } from "../utils/httpError.js";
-import { assertDirectImageUrl } from "../utils/url.js";
+import { assertDirectImageUrl, assertHttpOrUploadUrl } from "../utils/url.js";
 import {
   addInstructorLesson,
   createInstructorCourse,
@@ -49,6 +49,13 @@ function optionalImageUrl(value: unknown) {
   const normalized = optionalString(value, 500);
   if (!normalized) return normalized;
   assertDirectImageUrl(normalized);
+  return normalized;
+}
+
+function optionalLessonUrl(value: unknown, label: "Video URL" | "PDF URL") {
+  const normalized = optionalString(value, 500);
+  if (!normalized) return normalized;
+  assertHttpOrUploadUrl(normalized, `${label} must be an absolute http(s) URL or uploaded file path`);
   return normalized;
 }
 
@@ -164,8 +171,8 @@ router.post(
     if (title.length > 120) {
       throw new HttpError(400, "Title must be at most 120 characters");
     }
-    const videoUrlRaw = optionalString(req.body?.videoUrl, 500);
-    const pdfUrlRaw = optionalString(req.body?.pdfUrl, 500);
+    const videoUrlRaw = optionalLessonUrl(req.body?.videoUrl, "Video URL");
+    const pdfUrlRaw = optionalLessonUrl(req.body?.pdfUrl, "PDF URL");
     const videoFileName = optionalString(req.body?.videoFileName, 120);
     const pdfFileName = optionalString(req.body?.pdfFileName, 120);
 
@@ -193,8 +200,8 @@ router.patch(
       }
       payload.title = title;
     }
-    if (req.body?.videoUrl !== undefined) payload.videoUrl = optionalString(req.body?.videoUrl, 500);
-    if (req.body?.pdfUrl !== undefined) payload.pdfUrl = optionalString(req.body?.pdfUrl, 500);
+    if (req.body?.videoUrl !== undefined) payload.videoUrl = optionalLessonUrl(req.body?.videoUrl, "Video URL");
+    if (req.body?.pdfUrl !== undefined) payload.pdfUrl = optionalLessonUrl(req.body?.pdfUrl, "PDF URL");
 
     const lesson = await updateInstructorLesson(lessonId, actor, payload);
     res.json({ lesson });
