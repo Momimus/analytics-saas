@@ -14,6 +14,10 @@ import studentRoutes from "./routes/student.js";
 import { hardDeleteCourse } from "./services/instructorService.js";
 import { validateProfileUpdatePayload } from "./validation/profileValidation.js";
 import { sendError } from "./utils/httpError.js";
+import { createCsrfProtection } from "./middleware/csrf.js";
+import { createRateLimiter, hashIdentifier } from "./middleware/rateLimit.js";
+import { writeAuditLog } from "./services/auditService.js";
+import { getRequestMeta } from "./utils/requestMeta.js";
 
 const app = express();
 
@@ -32,6 +36,9 @@ const ALLOWED_ORIGINS = (
   .filter(Boolean);
 const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? "auth_token";
 const AUTH_COOKIE_SAMESITE = process.env.AUTH_COOKIE_SAMESITE ?? "lax";
+const CSRF_COOKIE_NAME = process.env.CSRF_COOKIE_NAME ?? "csrf_token";
+const CSRF_HEADER_NAME = (process.env.CSRF_HEADER_NAME ?? "x-csrf-token").toLowerCase();
+const RETURN_REGISTER_TOKEN = process.env.RETURN_REGISTER_TOKEN === "true";
 
 if (!JWT_SECRET) {
   if (IS_PROD) {
@@ -73,6 +80,49 @@ app.use((req, res, next) => {
   }
   return next();
 });
+app.use(
+  createCsrfProtection({
+    cookieName: CSRF_COOKIE_NAME,
+    headerName: CSRF_HEADER_NAME,
+  })
+);
+
+const authIpLimiter = createRateLimiter({
+  windowMs: Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS ?? 10 * 60 * 1000),
+  max: Number(process.env.AUTH_RATE_LIMIT_MAX ?? 60),
+  message: "Too many auth attempts. Please try again shortly.",
+});
+
+const loginIdentityLimiter = createRateLimiter({
+  windowMs: Number(process.env.AUTH_LOGIN_ID_WINDOW_MS ?? 10 * 60 * 1000),
+  max: Number(process.env.AUTH_LOGIN_ID_MAX ?? 20),
+  message: "Too many login attempts for this account. Please try again shortly.",
+  keyGenerator: (req) => {
+    const emailRaw = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    return `${req.ip}:login:${hashIdentifier(emailRaw || "unknown")}`;
+  },
+});
+
+const forgotIdentityLimiter = createRateLimiter({
+  windowMs: Number(process.env.AUTH_FORGOT_ID_WINDOW_MS ?? 10 * 60 * 1000),
+  max: Number(process.env.AUTH_FORGOT_ID_MAX ?? 10),
+  message: "Too many password reset requests. Please try again shortly.",
+  keyGenerator: (req) => {
+    const emailRaw = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    return `${req.ip}:forgot:${hashIdentifier(emailRaw || "unknown")}`;
+  },
+});
+
+const resetIdentityLimiter = createRateLimiter({
+  windowMs: Number(process.env.AUTH_RESET_ID_WINDOW_MS ?? 10 * 60 * 1000),
+  max: Number(process.env.AUTH_RESET_ID_MAX ?? 10),
+  message: "Too many password reset attempts. Please try again shortly.",
+  keyGenerator: (req) => {
+    const tokenRaw = typeof req.body?.token === "string" ? req.body.token : "";
+    return `${req.ip}:reset:${hashIdentifier(tokenRaw || "unknown")}`;
+  },
+});
+
 app.use("/courses", courseRoutes);
 app.use(studentRoutes);
 app.use("/instructor", instructorRoutes);
@@ -109,6 +159,23 @@ function clearAuthCookie(res: express.Response) {
   });
 }
 
+function setCsrfCookie(res: express.Response, token: string) {
+  const sameSite = AUTH_COOKIE_SAMESITE === "none" ? "none" : "lax";
+  res.cookie(CSRF_COOKIE_NAME, token, {
+    httpOnly: false,
+    sameSite,
+    secure: IS_PROD,
+    path: "/",
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+}
+
+function issueCsrfToken(res: express.Response) {
+  const token = crypto.randomBytes(32).toString("hex");
+  setCsrfCookie(res, token);
+  return token;
+}
+
 function parseRole(input?: string): Role | null {
   if (!input) return null;
   const normalized = input.trim().toUpperCase();
@@ -128,7 +195,12 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-app.post("/auth/register", async (req, res) => {
+app.get("/auth/csrf", (_req, res) => {
+  const csrfToken = issueCsrfToken(res);
+  return res.json({ csrfToken });
+});
+
+app.post("/auth/register", authIpLimiter, async (req, res) => {
   const { email, password, role } = req.body as {
     email?: string;
     password?: string;
@@ -169,10 +241,15 @@ app.post("/auth/register", async (req, res) => {
   });
 
   const token = signToken({ id: user.id, role: user.role });
-  return res.status(201).json({ token, user });
+  setAuthCookie(res, token);
+  issueCsrfToken(res);
+  return res.status(201).json({
+    ...(RETURN_REGISTER_TOKEN ? { token } : {}),
+    user,
+  });
 });
 
-app.post("/auth/login", async (req, res) => {
+app.post("/auth/login", authIpLimiter, loginIdentityLimiter, async (req, res) => {
   const { email, password } = req.body as {
     email?: string;
     password?: string;
@@ -194,6 +271,7 @@ app.post("/auth/login", async (req, res) => {
 
   const token = signToken({ id: user.id, role: user.role });
   setAuthCookie(res, token);
+  issueCsrfToken(res);
   return res.json({
     user: { id: user.id, email: user.email, role: user.role, createdAt: user.createdAt },
   });
@@ -204,7 +282,7 @@ app.post("/auth/logout", (_req, res) => {
   return res.json({ ok: true });
 });
 
-app.post("/auth/forgot-password", async (req, res) => {
+app.post("/auth/forgot-password", authIpLimiter, forgotIdentityLimiter, async (req, res) => {
   const { email } = req.body as { email?: string };
   const response: { ok: true; resetLink?: string } = { ok: true };
 
@@ -241,7 +319,7 @@ app.post("/auth/forgot-password", async (req, res) => {
   return res.status(200).json(response);
 });
 
-app.post("/auth/reset-password", async (req, res) => {
+app.post("/auth/reset-password", authIpLimiter, resetIdentityLimiter, async (req, res) => {
   const { token, newPassword } = req.body as { token?: string; newPassword?: string };
 
   if (!token || !newPassword) {
@@ -392,6 +470,7 @@ app.get("/admin/delete-requests", requireAuth, requireRole([Role.ADMIN]), async 
 });
 
 app.post("/admin/delete-requests/:id/approve", requireAuth, requireRole([Role.ADMIN]), async (req: AuthRequest, res) => {
+  const { ip, userAgent } = getRequestMeta(req);
   const requestId = getSingleParam(req.params.id);
   if (!requestId) {
     return sendError(res, 400, "Request id is required", "VALIDATION_ERROR");
@@ -432,10 +511,26 @@ app.post("/admin/delete-requests/:id/approve", requireAuth, requireRole([Role.AD
     }),
   ]);
 
+  await writeAuditLog({
+    actorId: req.user.id,
+    actorRole: req.user.role,
+    action: "COURSE_ARCHIVED",
+    entityType: "Course",
+    entityId: request.courseId,
+    metadata: {
+      requestId: request.id,
+      decision: "APPROVED",
+      adminNoteLength: adminNote?.length ?? 0,
+    },
+    ip,
+    userAgent,
+  });
+
   return res.json({ ok: true, archivedCourseId: request.courseId });
 });
 
 app.post("/admin/delete-requests/:id/reject", requireAuth, requireRole([Role.ADMIN]), async (req: AuthRequest, res) => {
+  const { ip, userAgent } = getRequestMeta(req);
   const requestId = getSingleParam(req.params.id);
   if (!requestId) {
     return sendError(res, 400, "Request id is required", "VALIDATION_ERROR");
@@ -470,15 +565,43 @@ app.post("/admin/delete-requests/:id/reject", requireAuth, requireRole([Role.ADM
     },
   });
 
+  await writeAuditLog({
+    actorId: req.user.id,
+    actorRole: req.user.role,
+    action: "COURSE_DELETE_REJECTED",
+    entityType: "DeletionRequest",
+    entityId: request.id,
+    metadata: {
+      requestId: request.id,
+      decision: "REJECTED",
+      adminNoteLength: adminNote.length,
+    },
+    ip,
+    userAgent,
+  });
+
   return res.json({ ok: true, rejectedId: request.id });
 });
 
-app.delete("/admin/courses/:id/hard-delete", requireAuth, requireRole([Role.ADMIN]), async (req, res) => {
+app.delete("/admin/courses/:id/hard-delete", requireAuth, requireRole([Role.ADMIN]), async (req: AuthRequest, res) => {
+  const { ip, userAgent } = getRequestMeta(req);
   const courseId = getSingleParam(req.params.id);
   if (!courseId) {
     return sendError(res, 400, "Course id is required", "VALIDATION_ERROR");
   }
   const result = await hardDeleteCourse(courseId);
+
+  await writeAuditLog({
+    actorId: req.user?.id ?? null,
+    actorRole: req.user?.role ?? null,
+    action: "COURSE_HARD_DELETED",
+    entityType: "Course",
+    entityId: result.deletedId,
+    metadata: { deletedId: result.deletedId },
+    ip,
+    userAgent,
+  });
+
   return res.json({ ok: true, deletedId: result.deletedId });
 });
 

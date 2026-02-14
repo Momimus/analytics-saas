@@ -69,6 +69,7 @@ model Course {
   @@index([createdById])
   @@index([isPublished])
   @@index([archivedAt])
+  @@index([isPublished, archivedAt])
 }
 
 model Lesson {
@@ -99,6 +100,7 @@ model Enrollment {
   @@unique([userId, courseId])
   @@index([courseId])
   @@index([status])
+  @@index([courseId, status])
 }
 
 model LessonProgress {
@@ -146,4 +148,23 @@ model DeletionRequest {
   @@index([courseId])
   @@index([requestedById])
   @@index([status])
+  @@index([courseId, status])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actorRole String?
+  action    String
+  entityType String
+  entityId  String?
+  metadata  Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorId])
+  @@index([action])
+  @@index([entityType, entityId])
 }

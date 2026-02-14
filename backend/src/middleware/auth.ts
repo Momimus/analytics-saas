@@ -6,6 +6,7 @@ import { sendError } from "../utils/httpError.js";
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "";
 const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? "auth_token";
+const ALLOW_BEARER_AUTH = process.env.ALLOW_BEARER_AUTH === "true";
 
 type AuthPayload = {
   sub: string;
@@ -19,7 +20,7 @@ export type AuthRequest = Request & {
   };
 };
 
-function getCookieValue(cookieHeader: string | undefined, name: string): string | null {
+export function getCookieValue(cookieHeader: string | undefined, name: string): string | null {
   if (!cookieHeader) return null;
   const parts = cookieHeader.split(";");
   for (const part of parts) {
@@ -34,7 +35,7 @@ function getCookieValue(cookieHeader: string | undefined, name: string): string 
 export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
   const cookieToken = getCookieValue(req.headers.cookie, AUTH_COOKIE_NAME);
   const header = req.headers.authorization ?? "";
-  const headerToken = header.startsWith("Bearer ") ? header.slice(7) : null;
+  const headerToken = ALLOW_BEARER_AUTH && header.startsWith("Bearer ") ? header.slice(7) : null;
   const token = cookieToken ?? headerToken;
 
   if (!token) {

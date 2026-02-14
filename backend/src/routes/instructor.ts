@@ -20,7 +20,9 @@ import {
   updateInstructorCourse,
   updateInstructorLesson,
 } from "../services/instructorService.js";
+import { writeAuditLog } from "../services/auditService.js";
 import { buildUploadPlaceholder } from "../services/uploadService.js";
+import { getRequestMeta } from "../utils/requestMeta.js";
 
 const router = Router();
 
@@ -166,6 +168,7 @@ router.post(
   "/courses/:id/lessons",
   asyncHandler(async (req: AuthRequest, res) => {
     const actor = getActor(req);
+    const { ip, userAgent } = getRequestMeta(req);
     const courseId = assertNonEmptyString(req.params.id, "Course id is required");
     const title = assertNonEmptyString(req.body?.title, "Title is required");
     if (title.length > 120) {
@@ -182,6 +185,17 @@ router.post(
       pdfUrl: pdfUrlRaw ?? (pdfFileName ? buildUploadPlaceholder("pdf", pdfFileName) : null),
     });
 
+    await writeAuditLog({
+      actorId: actor.id,
+      actorRole: actor.role,
+      action: "LESSON_CREATED",
+      entityType: "Lesson",
+      entityId: lesson.id,
+      metadata: { courseId },
+      ip,
+      userAgent,
+    });
+
     res.status(201).json({ lesson });
   })
 );
@@ -190,6 +204,7 @@ router.patch(
   "/lessons/:id",
   asyncHandler(async (req: AuthRequest, res) => {
     const actor = getActor(req);
+    const { ip, userAgent } = getRequestMeta(req);
     const lessonId = assertNonEmptyString(req.params.id, "Lesson id is required");
     const payload: { title?: string; videoUrl?: string | null; pdfUrl?: string | null } = {};
 
@@ -204,6 +219,18 @@ router.patch(
     if (req.body?.pdfUrl !== undefined) payload.pdfUrl = optionalLessonUrl(req.body?.pdfUrl, "PDF URL");
 
     const lesson = await updateInstructorLesson(lessonId, actor, payload);
+
+    await writeAuditLog({
+      actorId: actor.id,
+      actorRole: actor.role,
+      action: "LESSON_UPDATED",
+      entityType: "Lesson",
+      entityId: lesson.id,
+      metadata: { lessonId },
+      ip,
+      userAgent,
+    });
+
     res.json({ lesson });
   })
 );
@@ -212,8 +239,21 @@ router.delete(
   "/lessons/:id",
   asyncHandler(async (req: AuthRequest, res) => {
     const actor = getActor(req);
+    const { ip, userAgent } = getRequestMeta(req);
     const lessonId = assertNonEmptyString(req.params.id, "Lesson id is required");
     await deleteInstructorLesson(lessonId, actor);
+
+    await writeAuditLog({
+      actorId: actor.id,
+      actorRole: actor.role,
+      action: "LESSON_DELETED",
+      entityType: "Lesson",
+      entityId: lessonId,
+      metadata: { lessonId },
+      ip,
+      userAgent,
+    });
+
     res.json({ ok: true, deletedId: lessonId });
   })
 );
@@ -222,12 +262,25 @@ router.post(
   "/courses/:id/delete-request",
   asyncHandler(async (req: AuthRequest, res) => {
     const actor = getActor(req);
+    const { ip, userAgent } = getRequestMeta(req);
     const courseId = assertNonEmptyString(req.params.id, "Course id is required");
     const reason = assertNonEmptyString(req.body?.reason, "Deletion reason is required");
     if (reason.length > 1000) {
       throw new HttpError(400, "Reason must be at most 1000 characters");
     }
     const request = await requestCourseDeletion(courseId, reason, actor);
+
+    await writeAuditLog({
+      actorId: actor.id,
+      actorRole: actor.role,
+      action: "COURSE_DELETE_REQUESTED",
+      entityType: "Course",
+      entityId: courseId,
+      metadata: { deletionRequestId: request.id, reasonLength: reason.length },
+      ip,
+      userAgent,
+    });
+
     res.status(201).json({ ok: true, request });
   })
 );
@@ -266,8 +319,25 @@ router.post(
   "/enrollments/:id/approve",
   asyncHandler(async (req: AuthRequest, res) => {
     const actor = getActor(req);
+    const { ip, userAgent } = getRequestMeta(req);
     const enrollmentId = assertNonEmptyString(req.params.id, "Enrollment id is required");
     const enrollment = await updateEnrollmentStatus(enrollmentId, EnrollmentStatus.ACTIVE, actor);
+
+    await writeAuditLog({
+      actorId: actor.id,
+      actorRole: actor.role,
+      action: "ENROLLMENT_APPROVED",
+      entityType: "Enrollment",
+      entityId: enrollment.id,
+      metadata: {
+        courseId: enrollment.courseId,
+        studentId: enrollment.userId,
+        status: enrollment.status,
+      },
+      ip,
+      userAgent,
+    });
+
     res.json({ ok: true, enrollment });
   })
 );
@@ -276,8 +346,25 @@ router.post(
   "/enrollments/:id/revoke",
   asyncHandler(async (req: AuthRequest, res) => {
     const actor = getActor(req);
+    const { ip, userAgent } = getRequestMeta(req);
     const enrollmentId = assertNonEmptyString(req.params.id, "Enrollment id is required");
     const enrollment = await updateEnrollmentStatus(enrollmentId, EnrollmentStatus.REVOKED, actor);
+
+    await writeAuditLog({
+      actorId: actor.id,
+      actorRole: actor.role,
+      action: "ENROLLMENT_REVOKED",
+      entityType: "Enrollment",
+      entityId: enrollment.id,
+      metadata: {
+        courseId: enrollment.courseId,
+        studentId: enrollment.userId,
+        status: enrollment.status,
+      },
+      ip,
+      userAgent,
+    });
+
     res.json({ ok: true, enrollment });
   })
 );

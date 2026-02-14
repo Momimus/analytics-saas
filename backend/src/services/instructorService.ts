@@ -244,10 +244,10 @@ export async function updateInstructorLesson(
   const lesson = await prisma.lesson.findFirst({
     where:
       actor.role === Role.ADMIN
-        ? { id: lessonId }
+        ? { id: lessonId, course: { archivedAt: null } }
         : {
             id: lessonId,
-            course: { createdById: actor.id },
+            course: { createdById: actor.id, archivedAt: null },
           },
     select: { id: true },
   });
@@ -269,10 +269,10 @@ export async function deleteInstructorLesson(lessonId: string, actor: Actor) {
   const lesson = await prisma.lesson.findFirst({
     where:
       actor.role === Role.ADMIN
-        ? { id: lessonId }
+        ? { id: lessonId, course: { archivedAt: null } }
         : {
             id: lessonId,
-            course: { createdById: actor.id },
+            course: { createdById: actor.id, archivedAt: null },
           },
     select: { id: true },
   });
@@ -473,12 +473,14 @@ export async function updateEnrollmentStatus(
             id: enrollmentId,
             course: { createdById: actor.id },
           },
-    select: { id: true },
+    select: { id: true, status: true },
   });
 
   if (!enrollment) {
     throw new HttpError(404, "Enrollment request not found");
   }
+
+  assertEnrollmentTransitionAllowed(enrollment.status, nextStatus);
 
   return prisma.enrollment.update({
     where: { id: enrollmentId },
@@ -491,6 +493,30 @@ export async function updateEnrollmentStatus(
       updatedAt: true,
     },
   });
+}
+
+function assertEnrollmentTransitionAllowed(
+  currentStatus: EnrollmentStatus,
+  nextStatus: "ACTIVE" | "REVOKED"
+) {
+  if (currentStatus === EnrollmentStatus.REQUESTED) {
+    if (nextStatus === EnrollmentStatus.ACTIVE || nextStatus === EnrollmentStatus.REVOKED) {
+      return;
+    }
+  }
+
+  if (currentStatus === EnrollmentStatus.ACTIVE) {
+    if (nextStatus === EnrollmentStatus.REVOKED) {
+      return;
+    }
+    throw new HttpError(409, "Enrollment is already active");
+  }
+
+  if (currentStatus === EnrollmentStatus.REVOKED) {
+    throw new HttpError(409, "Enrollment is revoked and cannot be changed");
+  }
+
+  throw new HttpError(400, "Invalid enrollment state transition");
 }
 
 export async function hardDeleteCourse(courseId: string) {
