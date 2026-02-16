@@ -14,6 +14,14 @@ import InstructorCreateCoursePage from "./pages/InstructorCreateCourse";
 import InstructorCourseEditorPage from "./pages/InstructorCourseEditor";
 import InstructorStudentsPage from "./pages/InstructorStudents";
 import InstructorRequestsPage from "./pages/InstructorRequests";
+import AdminDashboardPage from "./pages/AdminDashboard";
+import AdminUsersPage from "./pages/AdminUsers";
+import AdminCoursesPage from "./pages/AdminCourses";
+import AdminEnrollmentsPage from "./pages/AdminEnrollments";
+import AdminAuditLogsPage from "./pages/AdminAuditLogs";
+import AdminInstructorsPage from "./pages/AdminInstructors";
+import AdminInstructorDetailPage from "./pages/AdminInstructorDetail";
+import AdminInboxPage from "./pages/AdminInbox";
 import AppShell from "./components/AppShell";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuth } from "./context/auth";
@@ -40,7 +48,8 @@ function PublicOnlyRoute({ children }: PropsWithChildren) {
 function RoleProtectedRoute({
   children,
   roles,
-}: PropsWithChildren<{ roles: Array<"ADMIN" | "INSTRUCTOR" | "STUDENT"> }>) {
+  redirectMessage,
+}: PropsWithChildren<{ roles: Array<"ADMIN" | "INSTRUCTOR" | "STUDENT">; redirectMessage?: string }>) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -56,7 +65,7 @@ function RoleProtectedRoute({
   }
 
   if (!roles.includes(user.role)) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/dashboard" replace state={redirectMessage ? { notice: redirectMessage } : undefined} />;
   }
 
   return <>{children}</>;
@@ -183,6 +192,70 @@ export default function App() {
           element={
             <RoleProtectedRoute roles={["INSTRUCTOR", "ADMIN"]}>
               <InstructorRequestsPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <RoleProtectedRoute roles={["ADMIN"]} redirectMessage="Not authorized to access Admin.">
+              <AdminDashboardPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <RoleProtectedRoute roles={["ADMIN"]} redirectMessage="Not authorized to access Admin.">
+              <AdminUsersPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/inbox"
+          element={
+            <RoleProtectedRoute roles={["ADMIN"]} redirectMessage="Not authorized to access Admin.">
+              <AdminInboxPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/instructors"
+          element={
+            <RoleProtectedRoute roles={["ADMIN"]} redirectMessage="Not authorized to access Admin.">
+              <AdminInstructorsPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/instructors/:id"
+          element={
+            <RoleProtectedRoute roles={["ADMIN"]} redirectMessage="Not authorized to access Admin.">
+              <AdminInstructorDetailPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/courses"
+          element={
+            <RoleProtectedRoute roles={["ADMIN"]} redirectMessage="Not authorized to access Admin.">
+              <AdminCoursesPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/enrollments"
+          element={
+            <RoleProtectedRoute roles={["ADMIN"]} redirectMessage="Not authorized to access Admin.">
+              <AdminEnrollmentsPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/audit-logs"
+          element={
+            <RoleProtectedRoute roles={["ADMIN"]} redirectMessage="Not authorized to access Admin.">
+              <AdminAuditLogsPage />
             </RoleProtectedRoute>
           }
         />

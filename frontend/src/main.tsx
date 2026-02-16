@@ -5,15 +5,18 @@ import App from "./App";
 import "./style.css";
 import { AuthProvider } from "./context/auth";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { ThemeProvider } from "./context/theme";
 
 ReactDOM.createRoot(document.getElementById("app")!).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <AuthProvider>
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </AuthProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   </React.StrictMode>
 );

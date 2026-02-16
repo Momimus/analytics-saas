@@ -35,12 +35,12 @@ export default function LoginPage() {
             if (loading) return;
             setLoading(true);
             try {
-              await apiFetch<{ user: { id: string; email: string; role: string } }>("/auth/login", {
+              const result = await apiFetch<{ user: { id: string; email: string; role: "ADMIN" | "INSTRUCTOR" | "STUDENT" } }>("/auth/login", {
                 method: "POST",
                 body: JSON.stringify({ email, password }),
               });
               await login();
-              navigate("/dashboard", { replace: true });
+              navigate(result.user.role === "ADMIN" ? "/admin" : "/dashboard", { replace: true });
             } catch (err) {
               setError(err instanceof Error ? err.message : "Login failed");
             } finally {

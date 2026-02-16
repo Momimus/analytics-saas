@@ -1,6 +1,7 @@
 import { EnrollmentStatus, Role } from "@prisma/client";
 import prisma from "../lib/prisma.js";
 import { HttpError } from "../utils/httpError.js";
+import { assertEnrollmentTransitionAllowed } from "./enrollmentLifecycle.js";
 
 type Actor = {
   id: string;
@@ -493,30 +494,6 @@ export async function updateEnrollmentStatus(
       updatedAt: true,
     },
   });
-}
-
-function assertEnrollmentTransitionAllowed(
-  currentStatus: EnrollmentStatus,
-  nextStatus: "ACTIVE" | "REVOKED"
-) {
-  if (currentStatus === EnrollmentStatus.REQUESTED) {
-    if (nextStatus === EnrollmentStatus.ACTIVE || nextStatus === EnrollmentStatus.REVOKED) {
-      return;
-    }
-  }
-
-  if (currentStatus === EnrollmentStatus.ACTIVE) {
-    if (nextStatus === EnrollmentStatus.REVOKED) {
-      return;
-    }
-    throw new HttpError(409, "Enrollment is already active");
-  }
-
-  if (currentStatus === EnrollmentStatus.REVOKED) {
-    throw new HttpError(409, "Enrollment is revoked and cannot be changed");
-  }
-
-  throw new HttpError(400, "Invalid enrollment state transition");
 }
 
 export async function hardDeleteCourse(courseId: string) {

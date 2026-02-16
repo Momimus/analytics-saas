@@ -10,13 +10,15 @@ import {
 } from "../lib/pendingRequests";
 import Badge from "./ui/Badge";
 import NotificationDot from "./ui/NotificationDot";
+import AppHeader from "./layout/AppHeader";
+import { useTheme } from "../context/theme";
 
 export default function AppShell({ children }: PropsWithChildren) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [pendingCount, setPendingCount] = useState(0);
   const [latestPendingAt, setLatestPendingAt] = useState<string | null>(null);
   const [showRequestsBadge, setShowRequestsBadge] = useState(false);
@@ -24,7 +26,7 @@ export default function AppShell({ children }: PropsWithChildren) {
   const previousPendingCountRef = useRef(0);
 
   const isLoggedIn = Boolean(user);
-  const isInstructorRole = user?.role === "INSTRUCTOR" || user?.role === "ADMIN";
+  const isInstructorRole = user?.role === "INSTRUCTOR";
 
   const navItems = useMemo(
     () => {
@@ -35,23 +37,76 @@ export default function AppShell({ children }: PropsWithChildren) {
         ];
       }
 
-      const items = [{ to: "/dashboard", label: "Home" }, { to: "/courses", label: "Courses" }];
+      if (user?.role === "ADMIN") {
+        return [
+          { to: "/admin", label: "Admin Dashboard" },
+          { to: "/admin/inbox", label: "Inbox" },
+          { to: "/admin/instructors", label: "Instructors" },
+          { to: "/admin/users", label: "Users" },
+          { to: "/admin/courses", label: "Courses" },
+          { to: "/admin/enrollments", label: "Enrollments" },
+          { to: "/admin/audit-logs", label: "Audit Logs" },
+          { to: "/profile", label: "Profile" },
+        ];
+      }
+
+      const items = [{ to: "/dashboard", label: "Dashboard" }, { to: "/courses", label: "Courses" }];
 
       if (user?.role === "STUDENT") {
         items.push({ to: "/my-courses", label: "My Courses" });
       }
 
-      items.push({ to: "/profile", label: "Profile" });
-
-      if (user?.role === "INSTRUCTOR" || user?.role === "ADMIN") {
-        items.splice(1, 0, { to: "/instructor", label: "Instructor" });
-        items.splice(2, 0, { to: "/instructor/requests", label: "Requests" });
+      if (user?.role === "INSTRUCTOR") {
+        items.push({ to: "/instructor", label: "Instructor" });
+        items.push({ to: "/instructor/requests", label: "Requests" });
       }
 
+      items.push({ to: "/profile", label: "Profile" });
       return items;
     },
     [isLoggedIn, user?.role]
   );
+
+  const isActivePath = useCallback((path: string) => {
+    if (path === "/instructor/requests" && location.pathname.startsWith("/instructor/requests")) return true;
+    if (path === "/instructor") {
+      return (
+        location.pathname === "/instructor" ||
+        location.pathname === "/instructor/new" ||
+        location.pathname.startsWith("/instructor/courses/")
+      );
+    }
+    if (path === "/courses" && location.pathname.startsWith("/courses/")) return true;
+    if (path === "/admin" && location.pathname.startsWith("/admin")) return true;
+    if (path === "/my-courses" && location.pathname.startsWith("/my-courses")) return true;
+    if (path === "/profile" && location.pathname.startsWith("/profile")) return true;
+    return location.pathname === path;
+  }, [location.pathname]);
+
+  const pageTitle = useMemo(() => {
+    if (location.pathname.startsWith("/instructor/requests")) return "Access Requests";
+    if (location.pathname.startsWith("/instructor/courses/")) return "Instructor Course Editor";
+    if (location.pathname.startsWith("/instructor/new")) return "Create Course";
+    if (location.pathname.startsWith("/instructor")) return "Instructor Workspace";
+    if (location.pathname.startsWith("/admin/audit-logs")) return "Audit Logs";
+    if (location.pathname.startsWith("/admin/instructors/")) return "Instructor Detail";
+    if (location.pathname.startsWith("/admin/instructors")) return "Instructor Oversight";
+    if (location.pathname.startsWith("/admin/inbox")) return "Admin Inbox";
+    if (location.pathname.startsWith("/admin/enrollments")) return "Admin Enrollments";
+    if (location.pathname.startsWith("/admin/courses")) return "Admin Courses";
+    if (location.pathname.startsWith("/admin/users")) return "Admin Users";
+    if (location.pathname.startsWith("/admin")) return "Admin Dashboard";
+    if (location.pathname.startsWith("/my-courses")) return "My Courses";
+    if (location.pathname.startsWith("/courses/") && location.pathname !== "/courses") return "Course Detail";
+    if (location.pathname.startsWith("/courses")) return "Courses";
+    if (location.pathname.startsWith("/lessons/")) return "Lesson";
+    if (location.pathname.startsWith("/profile")) return "Profile";
+    if (location.pathname.startsWith("/dashboard")) return "Dashboard";
+    if (location.pathname.startsWith("/register")) return "Create Account";
+    if (location.pathname.startsWith("/forgot-password")) return "Forgot Password";
+    if (location.pathname.startsWith("/reset-password")) return "Reset Password";
+    return "Workspace";
+  }, [location.pathname]);
 
   const refreshPendingRequests = useCallback(async () => {
     if (!isInstructorRole) {
@@ -71,16 +126,6 @@ export default function AppShell({ children }: PropsWithChildren) {
       setShowRequestsBadge(false);
     }
   }, [isInstructorRole]);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("lms-theme");
-    if (stored === "light" || stored === "dark") {
-      setTheme(stored);
-      document.documentElement.dataset.theme = stored;
-    } else {
-      document.documentElement.dataset.theme = "dark";
-    }
-  }, []);
 
   useEffect(() => {
     void refreshPendingRequests();
@@ -124,13 +169,6 @@ export default function AppShell({ children }: PropsWithChildren) {
     previousPendingCountRef.current = pendingCount;
   }, [pendingCount]);
 
-  const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    document.documentElement.dataset.theme = next;
-    localStorage.setItem("lms-theme", next);
-  };
-
   const mobileSidebarRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -154,179 +192,44 @@ export default function AppShell({ children }: PropsWithChildren) {
     };
   }, [isSidebarOpen]);
 
-  const isActivePath = (path: string) => {
-    if (path === "/instructor/requests" && location.pathname.startsWith("/instructor/requests")) return true;
-    if (path === "/instructor") {
-      return (
-        location.pathname === "/instructor" ||
-        location.pathname === "/instructor/new" ||
-        location.pathname.startsWith("/instructor/courses/")
-      );
-    }
-    if (path === "/courses" && location.pathname.startsWith("/courses/")) return true;
-    if (path === "/my-courses" && location.pathname.startsWith("/my-courses")) return true;
-    if (path === "/profile" && location.pathname.startsWith("/profile")) return true;
-    return location.pathname === path;
-  };
+  const desktopNavItems = navItems.map((item) => ({
+    ...item,
+    active: isActivePath(item.to),
+  }));
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--bg)] text-[var(--text)] [--app-header-h:3.5rem] [--app-shell-gap:0.75rem] md:[--app-shell-gap:1rem] [--app-header-offset:calc(var(--app-header-h)+var(--app-shell-gap))]">
-      <header className="sticky top-0 z-50 px-3 pt-3 md:-mb-0.5 md:px-4 md:pt-4">
-        <div className="mx-auto w-full md:w-[88%] md:max-w-[1280px]">
-          <div className="flex h-14 items-center justify-between rounded-2xl border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-glass-panel)] px-4 shadow-[0_10px_40px_rgba(0,0,0,0.35)] backdrop-blur-md md:px-5">
-          <div className="flex items-center gap-3">
-            <span className="grid h-9 w-9 place-items-center rounded-[var(--radius-md)] bg-[var(--accent)]/15 text-[var(--accent)] shadow-[var(--shadow-accent)]">
-              LMS
-            </span>
-            <div>
-              <p className="text-base font-semibold tracking-tight sm:text-lg">Learning Suite</p>
-              <p className="hidden text-xs text-[var(--text-muted)] sm:text-sm md:block">Modern LMS workspace</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 md:hidden">
-            <button
-              type="button"
-              onClick={() => setIsSidebarOpen((prev) => !prev)}
-              aria-label="Toggle menu"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)] text-[var(--text)] transition hover:bg-[color:var(--surface-strong)]"
-            >
-              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <path d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={toggleTheme}
-              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              className="grid h-9 w-9 place-items-center rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)] text-[var(--text)] transition hover:bg-[color:var(--surface-strong)]"
-            >
-              {theme === "dark" ? (
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <circle cx="12" cy="12" r="4" />
-                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5Z" />
-                </svg>
-              )}
-            </button>
-          </div>
-          <div className="hidden items-center gap-3 md:flex">
-            {!isLoggedIn && (
-              <nav className="flex items-center gap-2 text-sm">
-                {navItems.map((item) => {
-                  const isActive = isActivePath(item.to);
-                  const showBadge = isInstructorRole && item.to === "/dashboard" && showRequestsBadge;
-                  return (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      className={`rounded-full px-4 py-2 transition ${
-                        isActive
-                          ? "bg-[var(--accent)] text-[var(--accent-contrast)]"
-                          : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[color:var(--surface)]"
-                      }`}
-                    >
-                      <span className="inline-flex items-center gap-2">
-                        <span>{item.label}</span>
-                        {showBadge && (
-                          <>
-                            <NotificationDot visible pulseOnce={pulseRequestsDot} />
-                            <Badge variant="count" tone="success">{pendingCount > 99 ? "99+" : pendingCount}</Badge>
-                          </>
-                        )}
-                      </span>
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
-            {isLoggedIn && (
-              <button
-                type="button"
-                onClick={async () => {
-                  await logout();
-                  navigate("/login", { replace: true });
-                }}
-                className="rounded-full px-4 py-2 text-sm text-[var(--text-muted)] transition hover:text-[var(--text)] hover:bg-[color:var(--surface)]"
-              >
-                Logout
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={toggleTheme}
-              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              className="grid h-10 w-10 place-items-center rounded-full border border-[color:var(--border)] text-[var(--text)] transition hover:bg-[color:var(--surface)]"
-            >
-              {theme === "dark" ? (
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <circle cx="12" cy="12" r="4" />
-                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5Z" />
-                </svg>
-              )}
-            </button>
-          </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
+      <AppHeader
+        isLoggedIn={isLoggedIn}
+        role={user?.role ?? null}
+        userEmail={user?.email ?? null}
+        theme={theme}
+        pageTitle={pageTitle}
+        navItems={desktopNavItems}
+        pendingCount={pendingCount}
+        showRequestsBadge={showRequestsBadge}
+        pulseRequestsDot={pulseRequestsDot}
+        onNavigate={(path) => navigate(path)}
+        onToggleMobileMenu={() => setIsSidebarOpen((prev) => !prev)}
+        onToggleTheme={toggleTheme}
+        onLogout={async () => {
+          await logout();
+          navigate("/login", { replace: true });
+        }}
+      />
 
-      {isLoggedIn ? (
-        <div className="flex flex-1">
-          <div className="mx-auto flex w-full max-w-[1200px] flex-1 items-start gap-6 px-4 py-4 md:px-6 md:py-4 lg:px-8">
-            <aside className="sticky top-[var(--app-header-offset)] hidden w-64 min-h-[calc(100dvh-var(--app-header-offset)-0.75rem)] shrink-0 self-start rounded-[var(--radius-xl)] border border-[color:var(--border)] bg-[color:var(--surface)]/70 p-4 shadow-[var(--shadow-card)] md:flex md:flex-col">
-              <nav className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
-                {navItems.map((item) => {
-                  const isActive = isActivePath(item.to);
-                  const showBadge = isInstructorRole && item.to === "/dashboard" && showRequestsBadge;
-                  return (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      className={`rounded-[var(--radius-md)] px-3.5 py-2.5 text-sm font-medium transition ${
-                        isActive
-                          ? "bg-[var(--accent)] text-[var(--accent-contrast)]"
-                          : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[color:var(--surface-strong)]"
-                      }`}
-                    >
-                      <span className="inline-flex items-center gap-2">
-                        <span>{item.label}</span>
-                        {showBadge && (
-                          <>
-                            <NotificationDot visible pulseOnce={pulseRequestsDot} />
-                            <Badge variant="count" tone="success">{pendingCount > 99 ? "99+" : pendingCount}</Badge>
-                          </>
-                        )}
-                      </span>
-                    </Link>
-                  );
-                })}
-              </nav>
-              <div className="mt-3 border-t border-[color:var(--ui-border-soft)] pt-3 text-xs text-[var(--ui-text-muted)]">
-                Learning Suite v1
-              </div>
-            </aside>
-            <main className="page-fade scroll-gutter-stable min-w-0 flex-1 pb-8">{children}</main>
-          </div>
-        </div>
-      ) : (
-        <main className="page-fade scroll-gutter-stable flex-1">{children}</main>
-      )}
+      <main className="page-fade scroll-gutter-stable mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        {children}
+      </main>
 
       <div
-        className={`fixed left-0 right-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity md:hidden ${
+        className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity lg:hidden ${
           isSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
-        style={{ top: "var(--app-header-offset)", height: "calc(100dvh - var(--app-header-offset))" }}
       >
         <div
           ref={mobileSidebarRef}
-          className={`absolute left-0 top-0 h-full w-72 border-r border-[color:var(--border)] bg-[color:var(--surface)]/90 p-4 shadow-[var(--shadow-card)] transition-transform ${
+          className={`absolute left-0 top-16 h-[calc(100dvh-4rem)] w-72 border-r border-[color:var(--border)] bg-[color:var(--surface)]/92 p-4 shadow-[var(--shadow-card)] transition-transform ${
             isSidebarOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
@@ -340,10 +243,11 @@ export default function AppShell({ children }: PropsWithChildren) {
               Close
             </button>
           </div>
+
           <div className="grid gap-2">
             {navItems.map((item) => {
               const isActive = isActivePath(item.to);
-              const showBadge = isInstructorRole && item.to === "/dashboard" && showRequestsBadge;
+              const showBadge = isInstructorRole && item.to === "/instructor/requests" && showRequestsBadge;
               return (
                 <Link
                   key={item.to}
@@ -367,18 +271,38 @@ export default function AppShell({ children }: PropsWithChildren) {
                 </Link>
               );
             })}
+
             {isLoggedIn && (
-              <button
-                type="button"
-                onClick={async () => {
-                  await logout();
-                  setIsSidebarOpen(false);
-                  navigate("/login", { replace: true });
-                }}
-                className="rounded-[var(--radius-md)] px-4 py-3 text-left text-base font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)] hover:bg-[color:var(--surface-strong)]"
-              >
-                Logout
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => toggleTheme()}
+                  className="flex items-center justify-between rounded-[var(--radius-md)] px-4 py-3 text-left text-base font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)] hover:bg-[color:var(--surface-strong)]"
+                >
+                  <span>Theme</span>
+                  {theme === "dark" ? (
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <circle cx="12" cy="12" r="4" />
+                      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5Z" />
+                    </svg>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await logout();
+                    setIsSidebarOpen(false);
+                    navigate("/login", { replace: true });
+                  }}
+                  className="rounded-[var(--radius-md)] px-4 py-3 text-left text-base font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)] hover:bg-[color:var(--surface-strong)]"
+                >
+                  Logout
+                </button>
+              </>
             )}
           </div>
         </div>

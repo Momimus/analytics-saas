@@ -6,6 +6,7 @@ export type ErrorCode =
   | "FORBIDDEN"
   | "NOT_FOUND"
   | "CONFLICT"
+  | "TOO_MANY_REQUESTS"
   | "INTERNAL_ERROR";
 
 export type ErrorBody = {
@@ -21,6 +22,7 @@ function codeFromStatus(status: number): ErrorCode {
   if (status === 403) return "FORBIDDEN";
   if (status === 404) return "NOT_FOUND";
   if (status === 409) return "CONFLICT";
+  if (status === 429) return "TOO_MANY_REQUESTS";
   return "INTERNAL_ERROR";
 }
 

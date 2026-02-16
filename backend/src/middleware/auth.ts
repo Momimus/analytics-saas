@@ -51,6 +51,17 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
     if (!user) {
       return sendError(res, 401, "Unauthorized", "UNAUTHORIZED");
     }
+
+    const suspensionRows = await prisma.$queryRaw<Array<{ suspendedAt: Date | null }>>`
+      SELECT "suspendedAt"
+      FROM "User"
+      WHERE "id" = ${user.id}
+      LIMIT 1
+    `;
+
+    if (suspensionRows[0]?.suspendedAt) {
+      return sendError(res, 403, "Account is suspended", "FORBIDDEN");
+    }
     req.user = { id: user.id, role: user.role };
     return next();
   } catch (error) {

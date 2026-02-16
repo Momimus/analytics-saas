@@ -76,7 +76,7 @@ export default function InstructorDashboardPage() {
         <Button type="button" onClick={() => navigate("/instructor/new")}>Create Course</Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total Courses" value={overview.totalCourses} />
         <StatCard label="Published" value={overview.publishedCourses} />
         <StatCard label="Drafts" value={overview.draftCourses} />

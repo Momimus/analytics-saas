@@ -8,16 +8,14 @@ import { Role } from "@prisma/client";
 import prisma from "./lib/prisma.js";
 import courseRoutes from "./routes/courses.js";
 import instructorRoutes from "./routes/instructor.js";
+import adminRoutes from "./routes/admin.js";
 import { errorHandler } from "./middleware/errorHandler.js";
-import { requireAuth, requireRole, type AuthRequest } from "./middleware/auth.js";
+import { requireAuth, type AuthRequest } from "./middleware/auth.js";
 import studentRoutes from "./routes/student.js";
-import { hardDeleteCourse } from "./services/instructorService.js";
 import { validateProfileUpdatePayload } from "./validation/profileValidation.js";
 import { sendError } from "./utils/httpError.js";
 import { createCsrfProtection } from "./middleware/csrf.js";
 import { createRateLimiter, hashIdentifier } from "./middleware/rateLimit.js";
-import { writeAuditLog } from "./services/auditService.js";
-import { getRequestMeta } from "./utils/requestMeta.js";
 
 const app = express();
 
@@ -126,6 +124,7 @@ const resetIdentityLimiter = createRateLimiter({
 app.use("/courses", courseRoutes);
 app.use(studentRoutes);
 app.use("/instructor", instructorRoutes);
+app.use("/admin", adminRoutes);
 
 type AuthPayload = {
   sub: string;
@@ -174,21 +173,6 @@ function issueCsrfToken(res: express.Response) {
   const token = crypto.randomBytes(32).toString("hex");
   setCsrfCookie(res, token);
   return token;
-}
-
-function parseRole(input?: string): Role | null {
-  if (!input) return null;
-  const normalized = input.trim().toUpperCase();
-  if (normalized === "ADMIN") return Role.ADMIN;
-  if (normalized === "INSTRUCTOR") return Role.INSTRUCTOR;
-  if (normalized === "STUDENT") return Role.STUDENT;
-  return null;
-}
-
-function getSingleParam(value: string | string[] | undefined): string | null {
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) return value[0] ?? null;
-  return null;
 }
 
 app.get("/health", (_req, res) => {
@@ -267,6 +251,16 @@ app.post("/auth/login", authIpLimiter, loginIdentityLimiter, async (req, res) =>
   const isValid = await bcrypt.compare(password, user.passwordHash);
   if (!isValid) {
     return sendError(res, 401, "Invalid credentials", "UNAUTHORIZED");
+  }
+
+  const suspensionRows = await prisma.$queryRaw<Array<{ suspendedAt: Date | null }>>`
+    SELECT "suspendedAt"
+    FROM "User"
+    WHERE "id" = ${user.id}
+    LIMIT 1
+  `;
+  if (suspensionRows[0]?.suspendedAt) {
+    return sendError(res, 403, "Account is suspended", "FORBIDDEN");
   }
 
   const token = signToken({ id: user.id, role: user.role });
@@ -421,216 +415,6 @@ app.patch("/me", requireAuth, async (req: AuthRequest, res) => {
   });
 
   return res.json({ user: updated });
-});
-
-app.post("/admin/users/:id/role", requireAuth, requireRole([Role.ADMIN]), async (req, res) => {
-  const userId = getSingleParam(req.params.id);
-  const { role } = req.body as { role?: string };
-  const resolvedRole = parseRole(role);
-
-  if (!userId) {
-    return sendError(res, 400, "User id is required", "VALIDATION_ERROR");
-  }
-
-  if (!resolvedRole || resolvedRole === Role.STUDENT) {
-    return sendError(res, 400, "Role must be INSTRUCTOR or ADMIN", "VALIDATION_ERROR");
-  }
-
-  const updated = await prisma.user.update({
-    where: { id: userId },
-    data: { role: resolvedRole },
-    select: { id: true, email: true, role: true, createdAt: true },
-  });
-
-  return res.json({ user: updated });
-});
-
-app.get("/admin/delete-requests", requireAuth, requireRole([Role.ADMIN]), async (_req, res) => {
-  const requests = await prisma.deletionRequest.findMany({
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      reason: true,
-      status: true,
-      adminNote: true,
-      createdAt: true,
-      decidedAt: true,
-      course: {
-        select: { id: true, title: true, archivedAt: true, createdById: true },
-      },
-      requestedBy: {
-        select: { id: true, email: true, fullName: true },
-      },
-      decidedBy: {
-        select: { id: true, email: true, fullName: true },
-      },
-    },
-  });
-  return res.json({ requests });
-});
-
-app.post("/admin/delete-requests/:id/approve", requireAuth, requireRole([Role.ADMIN]), async (req: AuthRequest, res) => {
-  const { ip, userAgent } = getRequestMeta(req);
-  const requestId = getSingleParam(req.params.id);
-  if (!requestId) {
-    return sendError(res, 400, "Request id is required", "VALIDATION_ERROR");
-  }
-  if (!req.user) {
-    return sendError(res, 401, "Unauthorized", "UNAUTHORIZED");
-  }
-
-  const request = await prisma.deletionRequest.findUnique({
-    where: { id: requestId },
-    select: { id: true, status: true, courseId: true },
-  });
-  if (!request) {
-    return sendError(res, 404, "Deletion request not found", "NOT_FOUND");
-  }
-  if (request.status !== "PENDING") {
-    return sendError(res, 409, "Deletion request already decided", "CONFLICT");
-  }
-
-  const adminNote = typeof req.body?.adminNote === "string" ? req.body.adminNote.trim() : null;
-  const now = new Date();
-  await prisma.$transaction([
-    prisma.course.update({
-      where: { id: request.courseId },
-      data: {
-        archivedAt: now,
-        isPublished: false,
-      },
-    }),
-    prisma.deletionRequest.update({
-      where: { id: request.id },
-      data: {
-        status: "APPROVED",
-        adminNote,
-        decidedAt: now,
-        decidedById: req.user.id,
-      },
-    }),
-  ]);
-
-  await writeAuditLog({
-    actorId: req.user.id,
-    actorRole: req.user.role,
-    action: "COURSE_ARCHIVED",
-    entityType: "Course",
-    entityId: request.courseId,
-    metadata: {
-      requestId: request.id,
-      decision: "APPROVED",
-      adminNoteLength: adminNote?.length ?? 0,
-    },
-    ip,
-    userAgent,
-  });
-
-  return res.json({ ok: true, archivedCourseId: request.courseId });
-});
-
-app.post("/admin/delete-requests/:id/reject", requireAuth, requireRole([Role.ADMIN]), async (req: AuthRequest, res) => {
-  const { ip, userAgent } = getRequestMeta(req);
-  const requestId = getSingleParam(req.params.id);
-  if (!requestId) {
-    return sendError(res, 400, "Request id is required", "VALIDATION_ERROR");
-  }
-  if (!req.user) {
-    return sendError(res, 401, "Unauthorized", "UNAUTHORIZED");
-  }
-  const adminNote = typeof req.body?.adminNote === "string" ? req.body.adminNote.trim() : "";
-  if (!adminNote) {
-    return sendError(res, 400, "adminNote is required when rejecting a deletion request", "VALIDATION_ERROR");
-  }
-
-  const request = await prisma.deletionRequest.findUnique({
-    where: { id: requestId },
-    select: { id: true, status: true },
-  });
-  if (!request) {
-    return sendError(res, 404, "Deletion request not found", "NOT_FOUND");
-  }
-  if (request.status !== "PENDING") {
-    return sendError(res, 409, "Deletion request already decided", "CONFLICT");
-  }
-
-  const now = new Date();
-  await prisma.deletionRequest.update({
-    where: { id: request.id },
-    data: {
-      status: "REJECTED",
-      adminNote,
-      decidedAt: now,
-      decidedById: req.user.id,
-    },
-  });
-
-  await writeAuditLog({
-    actorId: req.user.id,
-    actorRole: req.user.role,
-    action: "COURSE_DELETE_REJECTED",
-    entityType: "DeletionRequest",
-    entityId: request.id,
-    metadata: {
-      requestId: request.id,
-      decision: "REJECTED",
-      adminNoteLength: adminNote.length,
-    },
-    ip,
-    userAgent,
-  });
-
-  return res.json({ ok: true, rejectedId: request.id });
-});
-
-app.delete("/admin/courses/:id/hard-delete", requireAuth, requireRole([Role.ADMIN]), async (req: AuthRequest, res) => {
-  const { ip, userAgent } = getRequestMeta(req);
-  const courseId = getSingleParam(req.params.id);
-  if (!courseId) {
-    return sendError(res, 400, "Course id is required", "VALIDATION_ERROR");
-  }
-  const result = await hardDeleteCourse(courseId);
-
-  await writeAuditLog({
-    actorId: req.user?.id ?? null,
-    actorRole: req.user?.role ?? null,
-    action: "COURSE_HARD_DELETED",
-    entityType: "Course",
-    entityId: result.deletedId,
-    metadata: { deletedId: result.deletedId },
-    ip,
-    userAgent,
-  });
-
-  return res.json({ ok: true, deletedId: result.deletedId });
-});
-
-app.delete("/admin/users/:id", requireAuth, requireRole([Role.ADMIN]), async (req, res) => {
-  const userId = getSingleParam(req.params.id);
-  if (!userId) {
-    return sendError(res, 400, "User id is required", "VALIDATION_ERROR");
-  }
-
-  const target = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, role: true },
-  });
-
-  if (!target) {
-    return sendError(res, 404, "User not found", "NOT_FOUND");
-  }
-
-  if (target.role === Role.INSTRUCTOR) {
-    const ownedCourses = await prisma.course.count({
-      where: { createdById: userId },
-    });
-    if (ownedCourses > 0) {
-      return sendError(res, 409, "Cannot delete instructor who still owns courses", "CONFLICT");
-    }
-  }
-
-  await prisma.user.delete({ where: { id: userId } });
-  return res.json({ ok: true, deletedId: userId });
 });
 
 app.use(errorHandler);

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Button from "../components/Button";
 import GlassCard from "../components/ui/GlassCard";
 import StatCard from "../components/ui/StatCard";
@@ -32,6 +32,8 @@ type InstructorCourse = {
 export default function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const notice = (location.state as { notice?: string } | null)?.notice ?? null;
   const [summary, setSummary] = useState<ProgressSummary | null>(null);
   const [progressError, setProgressError] = useState<string | null>(null);
   const [progressLoading, setProgressLoading] = useState(false);
@@ -69,7 +71,8 @@ export default function DashboardPage() {
   }, [user]);
 
   const isStudent = user?.role === "STUDENT";
-  const isInstructorRole = user?.role === "INSTRUCTOR" || user?.role === "ADMIN";
+  const isAdmin = user?.role === "ADMIN";
+  const isInstructorRole = user?.role === "INSTRUCTOR";
 
   useEffect(() => {
     if (!isInstructorRole) {
@@ -148,6 +151,11 @@ export default function DashboardPage() {
 
   return (
     <div className="grid gap-6">
+      {notice && (
+        <GlassCard>
+          <p className="text-sm text-amber-300">{notice}</p>
+        </GlassCard>
+      )}
       <GlassCard
         title={user?.fullName ? `Welcome, ${user.fullName}` : "Welcome"}
         subtitle={user ? `Logged in as ${user.email} (${user.role})` : "Loading..."}
@@ -189,9 +197,16 @@ export default function DashboardPage() {
             <Button type="button" variant="ghost" onClick={() => navigate("/profile")}>Open profile</Button>
           </div>
         </>
+      ) : isAdmin ? (
+        <GlassCard title="Admin Workspace" subtitle="Use the Admin panel to manage users, courses, enrollments, and audit logs.">
+          <div className="flex flex-wrap gap-3">
+            <Button type="button" onClick={() => navigate("/admin")}>Open Admin Panel</Button>
+            <Button type="button" variant="ghost" onClick={() => navigate("/profile")}>Open profile</Button>
+          </div>
+        </GlassCard>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Total Courses" value={instructorLoading ? "--" : instructorStats.totalCourses} />
             <StatCard label="Published" value={instructorLoading ? "--" : instructorStats.publishedCourses} />
             <StatCard label="Drafts" value={instructorLoading ? "--" : instructorStats.draftCourses} />

@@ -34,6 +34,7 @@ model User {
   email        String   @unique
   passwordHash String
   role         Role     @default(STUDENT)
+  suspendedAt  DateTime?
   fullName     String?
   phone        String?
   phoneCountry String?

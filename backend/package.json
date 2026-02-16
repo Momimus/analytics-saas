@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "prisma": "prisma",
+    "db:seed": "prisma db seed",
     "make:role": "tsx scripts/promote-user-role.ts",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit"

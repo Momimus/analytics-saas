@@ -38,7 +38,7 @@ export function createRateLimiter(options: RateLimitOptions) {
   const keyGenerator = options.keyGenerator ?? ((req: Request) => getClientIp(req));
 
   return (req: Request, res: Response, next: NextFunction) => {
-    const key = keyGenerator(req);
+    const key = (keyGenerator(req) ?? getClientIp(req) ?? "unknown").toString();
     const current = nowMs();
     const existing = store.get(key);
 
@@ -49,10 +49,9 @@ export function createRateLimiter(options: RateLimitOptions) {
 
     existing.count += 1;
     if (existing.count > max) {
-      return sendError(res, 429, options.message, "CONFLICT");
+      return sendError(res, 429, options.message, "TOO_MANY_REQUESTS");
     }
 
     return next();
   };
 }
-
