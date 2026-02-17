@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import Button from "../components/Button";
 import GlassCard from "../components/ui/GlassCard";
@@ -22,7 +22,7 @@ export default function LessonViewPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const loadLesson = async () => {
+  const loadLesson = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
@@ -34,7 +34,7 @@ export default function LessonViewPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     if (!id || user?.role !== "STUDENT") {
@@ -44,7 +44,7 @@ export default function LessonViewPage() {
     }
 
     void loadLesson();
-  }, [id, user?.role]);
+  }, [id, user?.role, loadLesson]);
 
   const handleComplete = async () => {
     if (!id || !lesson) return;

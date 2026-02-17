@@ -1,56 +1,47 @@
-# Admin Milestone Preparation
+# Admin Milestone Status and Next Steps
 
 ## Current System State Summary
-- Cookie-auth-first architecture is active and used by frontend (`credentials: include`).
-- Role model and ownership checks are broadly in place for student/instructor/admin operations.
-- Enrollment workflow (`REQUESTED -> ACTIVE -> REVOKED`) is implemented end-to-end.
-- Instructor request management is implemented with aggregated API + frontend badge UX.
-- Profile validation is now strict with backend field-level errors.
+- Cookie-based authentication is implemented end-to-end and used by the frontend (`credentials: include`).
+- Role model is fully active across UI and API (`STUDENT`, `INSTRUCTOR`, `ADMIN`).
+- Enrollment lifecycle (`REQUESTED -> ACTIVE -> REVOKED`) is implemented and enforced in backend transition rules.
+- Instructor request handling and deletion-request submission are implemented.
+- Admin moderation UI and backend routes are implemented for users, courses, enrollments, inbox, and audit logs.
 
-Overall state before Admin UI: **usable foundation with targeted consistency gaps**.
+Overall state: **admin milestone is delivered and operational**.
 
-## Admin Readiness Analysis
+## Implemented Admin Surface
 
-### Already Implemented (Backend)
-- `POST /admin/users/:id/role`
-- `DELETE /admin/users/:id`
-- `GET /admin/delete-requests`
-- `POST /admin/delete-requests/:id/approve`
-- `POST /admin/delete-requests/:id/reject`
-- `DELETE /admin/courses/:id/hard-delete`
+### Backend (Admin)
+- Metrics/summary endpoints
+- Instructor oversight endpoints (lists, detail, courses, students)
+- User moderation endpoints (list, suspend/activate, role change, transfer-admin, password reset, delete)
+- Course moderation endpoints (list, publish/unpublish/archive, hard-delete)
+- Enrollment moderation endpoints (list, status changes, grant/revoke)
+- Deletion-request moderation endpoints (list, approve/reject)
+- Audit log listing endpoint
 
-### Already Implemented (Data)
-- `Role` enum includes `ADMIN`.
-- `DeletionRequest` model supports admin decision fields (`adminNote`, `decidedAt`, `decidedById`).
-- Course archive + hard delete semantics exist.
+### Frontend (Admin)
+- Admin route set in `frontend/src/App.tsx`:
+  - `/admin`
+  - `/admin/inbox`
+  - `/admin/instructors`
+  - `/admin/instructors/:id`
+  - `/admin/users`
+  - `/admin/courses`
+  - `/admin/enrollments`
+  - `/admin/audit-logs`
+- Admin section navigation and action-confirmation UX are implemented.
 
-### Not Yet Implemented (Frontend)
-- No Admin panel routes/pages.
-- No admin UI workflow for user management, moderation, or deletion-request triage.
+## Known Operational Notes
+- Current rate limiting uses in-memory store; acceptable for single-instance deployments but should be externalized for horizontally scaled runtime.
+- Hard-delete remains intentionally destructive and moderation-gated.
 
 ## Recommended Next Development Order
-1. Admin route consumption layer in frontend (API client helpers + strict types).
-2. Admin panel shell and route gating (role-restricted UI entry points).
-3. Deletion request management UI (list + approve/reject with notes).
-4. User management UI (role changes + deletion constraints).
-5. Course moderation UI (archive visibility + hard delete safety prompts).
-6. Analytics/system dashboards (if required for milestone scope).
-
-## Risks to Monitor
-- Mixed error response shapes complicate reusable frontend admin error handling.
-- Deprecated endpoints still present may cause drift if reused by mistake.
-- Validation strictness differs by route group (lesson controller path vs instructor path).
-- No audit/event log model yet for admin actions.
-- Hard delete operations are destructive; UI must enforce confirmation and visibility.
-
-## Pre-Admin Cleanup Checklist
-- [ ] Decide and document a unified error response contract for new admin endpoints.
-- [ ] Confirm deprecated endpoints remain unused by frontend.
-- [ ] Align lesson URL validation behavior across all lesson-create entry points.
-- [ ] Define admin UI permissions matrix (which actions admin can perform where).
-- [ ] Define admin action logging strategy (at minimum, deletion/role changes).
-- [ ] Add admin-focused test checklist (role guard + ownership bypass expectations).
+1. Expand test coverage for admin edge cases (conflict scenarios, invalid transitions, filtering combinations).
+2. Add coverage thresholds and CI policy for quality gates.
+3. Add observability around moderation actions (structured logs, metrics, tracing).
+4. Plan infra hardening for multi-instance deployments.
 
 ## Readiness Verdict
-- **Readiness level:** Moderate
-- **Recommended to start Admin UI now?** Yes, with parallel cleanup of error-format and validation consistency.
+- Readiness level: **High for current milestone scope**.
+- Recommended to proceed with next milestone work: **Yes**.

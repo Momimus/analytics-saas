@@ -1,36 +1,34 @@
 # Backend Architecture
 
 ## Folder Structure
-- `backend/src/index.ts`: app bootstrap, auth/admin endpoints, middleware wiring
-- `backend/src/routes/*`: courses, student, instructor
-- `backend/src/controllers/*`: shared controllers for course/lesson route group
-- `backend/src/services/*`: Prisma/business logic
-- `backend/src/middleware/*`: auth, async wrapper, error handling
-- `backend/src/utils/*`: URL/assert helpers
-- `backend/src/validation/*`: payload validators (profile currently)
+- `backend/src/index.ts`: bootstrap, middleware wiring, auth/session endpoints, route mounting
+- `backend/src/routes/*`: route groups for courses, student, instructor, admin
+- `backend/src/controllers/*`: controller layer (shared course/lesson handlers)
+- `backend/src/services/*`: domain rules and Prisma operations
+- `backend/src/middleware/*`: auth, CSRF, rate limit, async wrapper, error handling
+- `backend/src/utils/*`: error helpers, request metadata, URL validators
+- `backend/src/validation/*`: payload validators
+- `backend/prisma/schema.prisma`: source of truth DB schema
 
 ## Security Model
-- Auth: JWT in HTTP-only cookie (plus bearer fallback in middleware).
-- `requireAuth` always refreshes role from DB.
-- Role gates via `requireRole`.
-- Mutating origin check in global middleware (`POST/PATCH/PUT/DELETE`).
-
-### Security/Consistency Findings
-- CSRF protection is origin-only (no anti-CSRF token pattern).
-- Error format is not unified:
-  - `HttpError` path returns `{ error }`
-  - profile validation returns `{ ok:false, error:"VALIDATION_ERROR", message, fieldErrors }`
-- `POST /auth/register` returns a JWT in body but does not set auth cookie, while login does set cookie.
+- Auth is JWT via HTTP-only cookie by default.
+- Optional bearer-token fallback exists behind `ALLOW_BEARER_AUTH=true`.
+- `requireAuth` resolves current user from DB and blocks suspended accounts.
+- `requireRole` enforces RBAC at route boundaries.
+- CSRF protection is implemented using cookie/header token matching middleware.
+- Mutating-origin validation is enforced globally for `POST/PATCH/PUT/DELETE`.
+- Rate limiting is applied to auth-related endpoints.
 
 ## Authorization Model
-- Roles: `STUDENT`, `INSTRUCTOR`, `ADMIN`
-- Instructor routes are scoped with ownership checks in services.
-- Admin is intentionally allowed to bypass instructor ownership constraints in selected service calls.
-- Public course routes are constrained to published + non-archived data.
+- Roles: `STUDENT`, `INSTRUCTOR`, `ADMIN`.
+- Instructor routes enforce ownership checks (with admin bypass where intentionally allowed).
+- Admin routes are fully role-gated at router level.
 
 ## Route Surface (Current)
 
-### Auth + Session (`index.ts`)
+### Auth + Session (`src/index.ts`)
+- `GET /health`
+- `GET /auth/csrf`
 - `POST /auth/register`
 - `POST /auth/login`
 - `POST /auth/logout`
@@ -39,16 +37,16 @@
 - `GET /me`
 - `PATCH /me`
 
-### Public/Shared Course Routes (`routes/courses.ts`)
+### Courses (`src/routes/courses.ts`)
 - `GET /courses`
 - `GET /courses/:id/public`
-- `GET /courses/:id` (auth required)
-- `GET /courses/:id/lessons` (auth required)
-- `POST /courses/:id/lessons` (INSTRUCTOR/ADMIN)
-- `POST /courses` (INSTRUCTOR/ADMIN)
+- `GET /courses/:id`
+- `GET /courses/:id/lessons`
+- `POST /courses/:id/lessons`
+- `POST /courses`
 
-### Student (`routes/student.ts`)
-- `POST /courses/:id/request-access` (canonical)
+### Student (`src/routes/student.ts`)
+- `POST /courses/:id/request-access`
 - `POST /courses/:id/enroll` (deprecated alias)
 - `GET /my/enrollments`
 - `GET /my/courses`
@@ -57,48 +55,32 @@
 - `POST /lessons/:id/complete`
 - `POST /lessons/:id/uncomplete`
 
-### Instructor (`routes/instructor.ts`)
-- `GET /instructor/requests`
-- `GET /instructor/courses`
-- `GET /instructor/courses/:id`
-- `PATCH /instructor/courses/:id`
-- `POST /instructor/courses`
-- `GET /instructor/courses/:id/lessons`
-- `POST /instructor/courses/:id/lessons`
-- `PATCH /instructor/lessons/:id`
-- `DELETE /instructor/lessons/:id`
-- `POST /instructor/courses/:id/publish`
-- `POST /instructor/courses/:id/unpublish`
-- `GET /instructor/courses/:id/requests`
-- `POST /instructor/enrollments/:id/approve`
-- `POST /instructor/enrollments/:id/revoke`
-- `GET /instructor/courses/:id/students`
-- `POST /instructor/courses/:id/delete-request`
+### Instructor (`src/routes/instructor.ts`)
+- course listing/detail/create/update
+- publish/unpublish
+- lesson CRUD
+- enrollment request listing + approve/revoke
+- students listing
+- deletion request submission
 
-### Admin (`index.ts`)
-- `POST /admin/users/:id/role`
-- `DELETE /admin/users/:id`
-- `GET /admin/delete-requests`
-- `POST /admin/delete-requests/:id/approve`
-- `POST /admin/delete-requests/:id/reject`
-- `DELETE /admin/courses/:id/hard-delete`
+### Admin (`src/routes/admin.ts`)
+- metrics/summary
+- instructor oversight (list/detail/courses/students)
+- users moderation (list/filter, suspend/activate, role, transfer-admin, reset, delete)
+- courses moderation (list/filter, publish/unpublish/archive, hard-delete)
+- deletion request moderation (list/approve/reject)
+- enrollments moderation (list/status/grant/revoke)
+- audit log listing
 
-## Frontend Usage Notes
-- Admin routes are currently not consumed by frontend routes/pages.
-- `POST /courses/:id/enroll` is not used by frontend and marked deprecated.
-- `POST /courses/:id/lessons` appears unused by frontend (instructor UI uses `/instructor/courses/:id/lessons`).
-- `GET /courses/:id` appears currently unused by frontend course detail page (which uses `/public` + `/lessons`).
+## Layering Notes
+- Main architecture follows routes -> controllers -> services -> prisma.
+- Admin and some instructor modules use routes -> services directly for pragmatic, low-overhead handling where controller indirection adds little value.
 
 ## Validation Coverage Snapshot
-- Strong:
-  - profile payload (`validation/profileValidation.ts`)
-  - course create/update string lengths + image URL constraints
-  - instructor lesson URL validation (`assertHttpOrUploadUrl`)
-- Weaker/inconsistent:
-  - `lessonController` route path `POST /courses/:id/lessons` uses looser optional URL handling
-  - mixed validation response shapes
+- Profile update validation includes structured `fieldErrors`.
+- Course and lesson operations validate required fields and URL constraints.
+- Enrollment status transitions are validated centrally with lifecycle guard utilities.
 
-## Performance/Structure Risks
-- Multiple requests on dashboard (`/instructor/courses` + `/instructor/requests`) are expected and bounded.
-- No obvious N+1 in instructor requests aggregation (single transaction query set).
-- Hardcoded response DTO shapes are mostly intentional but not formally centralized across all route groups.
+## Stability Notes
+- Typecheck, lint, tests, and builds are currently passing.
+- Prisma configuration uses `prisma.config.ts` (deprecated package.json Prisma config removed).

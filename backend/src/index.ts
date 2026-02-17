@@ -419,6 +419,10 @@ app.patch("/me", requireAuth, async (req: AuthRequest, res) => {
 
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  console.log(`API listening on http://localhost:${PORT}`);
-});
+if (process.env.NODE_ENV !== "test") {
+  app.listen(PORT, () => {
+    console.log(`API listening on http://localhost:${PORT}`);
+  });
+}
+
+export { app };

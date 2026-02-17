@@ -64,7 +64,7 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
     }
     req.user = { id: user.id, role: user.role };
     return next();
-  } catch (error) {
+  } catch {
     return sendError(res, 401, "Invalid token", "UNAUTHORIZED");
   }
 }

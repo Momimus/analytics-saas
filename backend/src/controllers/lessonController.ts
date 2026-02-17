@@ -1,4 +1,4 @@
-import type { Request, Response } from "express";
+import type { Response } from "express";
 import { EnrollmentStatus, Role } from "@prisma/client";
 import prisma from "../lib/prisma.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
