@@ -150,7 +150,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-5">
       {notice && (
         <GlassCard>
           <p className="text-sm text-amber-300">{notice}</p>
@@ -163,7 +163,7 @@ export default function DashboardPage() {
 
       {isStudent ? (
         <>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <StatCard
               label="Enrolled Courses"
               value={summary ? summary.totalEnrolledCourses : "--"}
@@ -191,7 +191,7 @@ export default function DashboardPage() {
             )}
           </GlassCard>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2.5">
             <Button type="button" onClick={() => navigate("/courses")}>View courses</Button>
             <Button type="button" variant="ghost" onClick={() => navigate("/my-courses")}>My courses</Button>
             <Button type="button" variant="ghost" onClick={() => navigate("/profile")}>Open profile</Button>
@@ -199,14 +199,14 @@ export default function DashboardPage() {
         </>
       ) : isAdmin ? (
         <GlassCard title="Admin Workspace" subtitle="Use the Admin panel to manage users, courses, enrollments, and audit logs.">
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2.5">
             <Button type="button" onClick={() => navigate("/admin")}>Open Admin Panel</Button>
             <Button type="button" variant="ghost" onClick={() => navigate("/profile")}>Open profile</Button>
           </div>
         </GlassCard>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Total Courses" value={instructorLoading ? "--" : instructorStats.totalCourses} />
             <StatCard label="Published" value={instructorLoading ? "--" : instructorStats.publishedCourses} />
             <StatCard label="Drafts" value={instructorLoading ? "--" : instructorStats.draftCourses} />
@@ -257,7 +257,7 @@ export default function DashboardPage() {
               </div>
             }
           >
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               <Button
                 type="button"
                 variant="ghost"
@@ -286,7 +286,7 @@ export default function DashboardPage() {
             </div>
 
             {requestsExpanded && (
-              <div className="mt-3">
+              <div className="mt-2.5">
                 {requestsLoading ? (
                   <p className="text-sm text-[var(--text-muted)]">Loading...</p>
                 ) : requestsError ? (
@@ -294,7 +294,7 @@ export default function DashboardPage() {
                 ) : pendingRequests.length === 0 ? (
                   <p className="text-sm text-[var(--text-muted)]">No pending requests.</p>
                 ) : (
-                  <div className="grid gap-3">
+                  <div className="grid gap-2.5">
                     {pendingRequests.map((request) => (
                       <GlassCard
                         key={request.id}
@@ -354,7 +354,7 @@ export default function DashboardPage() {
             )}
           </GlassCard>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2.5">
             <Button type="button" onClick={() => navigate("/instructor/new")}>Create course</Button>
             <Button type="button" onClick={() => navigate("/instructor")}>Go to Instructor workspace</Button>
             <Button type="button" variant="ghost" onClick={() => navigate("/courses")}>View catalog</Button>

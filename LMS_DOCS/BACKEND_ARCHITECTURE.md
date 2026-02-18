@@ -70,7 +70,7 @@
 - courses moderation (list/filter, publish/unpublish/archive, hard-delete)
 - deletion request moderation (list/approve/reject)
 - enrollments moderation (list/status/grant/revoke)
-- audit log listing
+- audit log listing with optional query filters (`actorId`, `action`, `entityType`, `dateFrom`, `dateTo`, paging)
 
 ## Layering Notes
 - Main architecture follows routes -> controllers -> services -> prisma.
@@ -84,3 +84,4 @@
 ## Stability Notes
 - Typecheck, lint, tests, and builds are currently passing.
 - Prisma configuration uses `prisma.config.ts` (deprecated package.json Prisma config removed).
+- CI (`.github/workflows/ci.yml`) runs `npm run check` and backend `prisma validate` on push/PR.

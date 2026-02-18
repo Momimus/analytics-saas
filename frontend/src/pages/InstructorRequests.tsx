@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
+import AdminFilterBar from "../components/admin/AdminFilterBar";
 import GlassCard from "../components/ui/GlassCard";
 import Badge from "../components/ui/Badge";
 import SelectPopover from "../components/ui/SelectPopover";
@@ -45,10 +46,10 @@ export default function InstructorRequestsPage() {
   }, [requests, courseFilter]);
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-[var(--text)]">Access Requests</h1>
+          <h1 className="text-xl font-semibold text-[var(--text)]">Access Requests</h1>
           <p className="text-sm text-[var(--text-muted)]">Review student access requests across your courses.</p>
         </div>
         <Button type="button" variant="ghost" onClick={() => navigate("/dashboard")}>
@@ -61,15 +62,22 @@ export default function InstructorRequestsPage() {
         subtitle="Approve or reject incoming requests."
         actions={<Badge variant="count" tone="success">{loading ? "--" : visibleRequests.length}</Badge>}
       >
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <span className="text-xs text-[var(--text-muted)]">Filter by course</span>
+        <AdminFilterBar
+          title="Request Filters"
+          helper="Scope pending requests by course."
+          activeFilterCount={courseFilter === "ALL" ? 0 : 1}
+          onReset={() => setCourseFilter("ALL")}
+        >
           <SelectPopover
             items={courseOptions}
             value={courseFilter}
             onChange={setCourseFilter}
             className="w-full sm:w-auto"
           />
-        </div>
+          <div />
+          <div />
+          <div />
+        </AdminFilterBar>
 
         {loading ? (
           <p className="text-sm text-[var(--text-muted)]">Loading...</p>
@@ -140,3 +148,4 @@ export default function InstructorRequestsPage() {
     </div>
   );
 }
+

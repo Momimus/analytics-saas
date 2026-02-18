@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Button from "../components/Button";
 import AdminSectionNav from "../components/admin/AdminSectionNav";
 import ConfirmActionModal from "../components/admin/ConfirmActionModal";
+import AdminFilterBar from "../components/admin/AdminFilterBar";
 import { AdminPagination, AdminTable } from "../components/admin/AdminTable";
 import ToastBanner from "../components/admin/ToastBanner";
 import GlassCard from "../components/ui/GlassCard";
+import Select from "../components/ui/Select";
 import type { AdminInstructorListItem } from "../lib/admin";
 import { listAdminInstructors } from "../lib/admin";
 import { apiFetch, ApiError } from "../lib/api";
@@ -32,6 +34,10 @@ export default function AdminInstructorsPage() {
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
+  const activeFilters = [
+    ...(search.trim() ? [{ key: "search", label: "Search", value: search.trim(), onRemove: () => setSearch("") }] : []),
+    ...(status !== "ALL" ? [{ key: "status", label: "Status", value: status, onRemove: () => setStatus("ALL") }] : []),
+  ];
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
@@ -91,45 +97,55 @@ export default function AdminInstructorsPage() {
   };
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-5">
       <AdminSectionNav />
 
       <GlassCard title="Instructors" subtitle="Oversight for instructor status, courses, and students.">
-        <div className="mb-3 grid gap-2 md:grid-cols-4">
+        <AdminFilterBar
+          title="Instructor Filters"
+          helper="Search instructor roster and moderation state."
+          activeFilterCount={activeFilters.length}
+          hint="Find instructors by account identity and moderation status."
+          onReset={() => {
+            setSearch("");
+            setStatus("ALL");
+          }}
+          rightSlot={
+            <Button type="button" className="h-9 px-3 py-0 text-xs" onClick={() => void load()}>
+              Refresh
+            </Button>
+          }
+        >
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search by name/email"
             className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[var(--text)]"
           />
-          <select
+          <Select
             value={status}
-            onChange={(event) => setStatus(event.target.value as typeof status)}
-            className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[var(--text)]"
-          >
-            <option value="ALL">All status</option>
-            <option value="active">Active</option>
-            <option value="suspended">Suspended</option>
-          </select>
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-10 px-4 py-0"
-            onClick={() => {
-              setSearch("");
-              setStatus("ALL");
-            }}
-          >
-            Clear filters
-          </Button>
-          <Button type="button" className="h-10 px-4 py-0" onClick={() => void load()}>
-            Refresh
-          </Button>
-        </div>
+            onChange={(next) => setStatus(next as typeof status)}
+            ariaLabel="Filter instructors by status"
+            items={[
+              { label: "All status", value: "ALL" },
+              { label: "Active", value: "active" },
+              { label: "Suspended", value: "suspended" },
+            ]}
+          />
+          <div />
+          <div />
+        </AdminFilterBar>
 
         <AdminTable
           loading={loading}
           error={error}
+          stickyHeader
+          zebraRows
+          appliedFilters={activeFilters}
+          onClearFilters={() => {
+            setSearch("");
+            setStatus("ALL");
+          }}
           hasRows={instructors.length > 0}
           emptyMessage="No instructors found."
           colCount={6}
@@ -159,14 +175,14 @@ export default function AdminInstructorsPage() {
                   <div className="flex flex-wrap gap-2">
                     <Link
                       to={`/admin/instructors/${instructor.id}`}
-                      className="inline-flex h-10 items-center rounded-[var(--radius-md)] border border-[color:var(--border)] px-3 text-sm text-[var(--text-muted)] hover:bg-[color:var(--surface-strong)] hover:text-[var(--text)]"
+                      className="inline-flex h-9 items-center rounded-[var(--radius-md)] border border-[color:var(--border)] px-2.5 text-xs text-[var(--text-muted)] hover:bg-[color:var(--surface-strong)] hover:text-[var(--text)]"
                     >
                       View
                     </Link>
                     <Button
                       type="button"
                       variant="ghost"
-                      className="h-10 px-3 py-0"
+                      className="h-9 px-2.5 py-0 text-xs"
                       onClick={() =>
                         setPendingAction({
                           endpoint: `/admin/users/${instructor.id}/${instructor.suspendedAt ? "activate" : "suspend"}`,
@@ -212,3 +228,4 @@ export default function AdminInstructorsPage() {
     </div>
   );
 }
+

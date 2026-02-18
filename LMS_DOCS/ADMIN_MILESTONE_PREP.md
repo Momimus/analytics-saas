@@ -6,6 +6,10 @@
 - Enrollment lifecycle (`REQUESTED -> ACTIVE -> REVOKED`) is implemented and enforced in backend transition rules.
 - Instructor request handling and deletion-request submission are implemented.
 - Admin moderation UI and backend routes are implemented for users, courses, enrollments, inbox, and audit logs.
+- Admin table UX is polished with shared filters, loading skeletons, and explicit empty states across key moderation pages.
+- Audit logs viewer includes quick filters, expanded detail modal, and readable metadata/diff presentation.
+- CI quality gates are wired with a root `npm run check` command and GitHub Actions workflow.
+- Frontend resilience UX includes dedicated `403`/`404` pages, a global React error boundary, and retryable inline API error states on admin surfaces.
 
 Overall state: **admin milestone is delivered and operational**.
 
@@ -38,7 +42,7 @@ Overall state: **admin milestone is delivered and operational**.
 
 ## Recommended Next Development Order
 1. Expand test coverage for admin edge cases (conflict scenarios, invalid transitions, filtering combinations).
-2. Add coverage thresholds and CI policy for quality gates.
+2. Add coverage thresholds and branch protection policy on top of existing CI checks.
 3. Add observability around moderation actions (structured logs, metrics, tracing).
 4. Plan infra hardening for multi-instance deployments.
 

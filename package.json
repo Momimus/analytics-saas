@@ -10,6 +10,7 @@
     "build": "npm --workspace backend run build && npm --workspace frontend run build",
     "lint": "npm --workspace frontend run lint && npm --workspace backend run lint",
     "typecheck": "npm --workspace frontend run typecheck && npm --workspace backend run typecheck",
-    "test": "npm --workspace frontend run test && npm --workspace backend run test"
+    "test": "npm --workspace frontend run test && npm --workspace backend run test",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run build"
   }
 }

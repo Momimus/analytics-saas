@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Button from "../Button";
+import Dialog from "../ui/Dialog";
 
 type ConfirmActionModalProps = {
   open: boolean;
@@ -39,8 +40,8 @@ export default function ConfirmActionModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4">
-      <div className="w-full max-w-md rounded-[var(--radius-xl)] border border-[color:var(--border)] bg-[color:var(--surface)] p-5 shadow-[var(--shadow-card)]">
+    <Dialog open={open} onClose={onClose} className="max-w-md">
+      <div>
         <h2 className="text-lg font-semibold text-[var(--text)]">{title}</h2>
         <p className="mt-2 text-sm text-[var(--text-muted)]">{description}</p>
 
@@ -51,6 +52,7 @@ export default function ConfirmActionModal({
             onChange={(event) => setReason(event.target.value)}
             className="min-h-[96px] w-full rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)] px-3 py-2 text-sm text-[var(--text)]"
             placeholder={reasonPlaceholder}
+            aria-label={reasonLabel}
           />
         </label>
 
@@ -70,6 +72,6 @@ export default function ConfirmActionModal({
           </Button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

@@ -4,6 +4,7 @@ import Button from "../components/Button";
 import CourseThumbnail from "../components/CourseThumbnail";
 import StatCard from "../components/ui/StatCard";
 import Badge from "../components/ui/Badge";
+import Dialog from "../components/ui/Dialog";
 import GlassCard from "../components/ui/GlassCard";
 import { apiFetch } from "../lib/api";
 import { formatInstructorName } from "../lib/instructor";
@@ -67,21 +68,21 @@ export default function InstructorDashboardPage() {
   }, [courses]);
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-[var(--text)]">Instructor Dashboard</h1>
+          <h1 className="text-xl font-semibold text-[var(--text)]">Instructor Dashboard</h1>
           <p className="text-sm text-[var(--text-muted)]">Manage your draft and published courses.</p>
         </div>
         <Button type="button" onClick={() => navigate("/instructor/new")}>Create Course</Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total Courses" value={overview.totalCourses} />
-        <StatCard label="Published" value={overview.publishedCourses} />
-        <StatCard label="Drafts" value={overview.draftCourses} />
-        <StatCard label="Enrollments" value={overview.totalEnrollments} />
-        <StatCard label="Lessons" value={overview.totalLessons} />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard loading={loading} label="Total Courses" value={overview.totalCourses} hint="Owned by you" />
+        <StatCard loading={loading} label="Published" value={overview.publishedCourses} hint="Visible to students" />
+        <StatCard loading={loading} label="Drafts" value={overview.draftCourses} hint="Still in progress" />
+        <StatCard loading={loading} label="Enrollments" value={overview.totalEnrollments} hint="Across all courses" />
+        <StatCard loading={loading} label="Lessons" value={overview.totalLessons} hint="Total authored content" />
       </div>
 
       <GlassCard title="My Courses" subtitle="Status, lesson count, and enrollments." className="w-full">
@@ -92,12 +93,12 @@ export default function InstructorDashboardPage() {
         ) : courses.length === 0 ? (
           <p className="text-sm text-[var(--text-muted)]">No courses yet. Create your first draft.</p>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid gap-3">
             {courses.map((course) => {
               const isRequesting = requestingCourseId === course.id;
               const anyRequestInFlight = requestingCourseId !== null;
               return (
-                <GlassCard key={course.id} className="p-4">
+                <GlassCard key={course.id} className="p-3.5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
                       <CourseThumbnail title={course.title} imageUrl={course.imageUrl} className="w-32 sm:w-36" />
@@ -151,17 +152,18 @@ export default function InstructorDashboardPage() {
             })}
           </div>
         )}
-        {notice && <p className="mt-3 text-sm text-emerald-300">{notice}</p>}
+        {notice && <p className="mt-2.5 text-sm text-emerald-300">{notice}</p>}
       </GlassCard>
 
       {courseToRequestDelete && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4">
-          <div className="w-full max-w-md rounded-[var(--radius-xl)] border border-[color:var(--border)] bg-[color:var(--surface)] p-5 shadow-[var(--shadow-card)]">
+        <Dialog open={Boolean(courseToRequestDelete)} onClose={() => setCourseToRequestDelete(null)} className="max-w-md">
+          <div>
             <h2 className="text-lg font-semibold text-[var(--text)]">Request course deletion?</h2>
             <p className="mt-2 text-sm text-[var(--text-muted)]">
               Submit a deletion request for <span className="text-[var(--text)]">{courseToRequestDelete.title}</span>. An admin must approve it.
             </p>
-            <label className="mt-3 grid gap-2 text-sm font-medium text-[var(--text-muted)]">
+            <p className="mt-1 text-xs text-amber-200">This action sends a moderation request and cannot self-approve.</p>
+            <label className="mt-2.5 grid gap-1.5 text-sm font-medium text-[var(--text-muted)]">
               <span className="text-[var(--text)]">Reason (required)</span>
               <textarea
                 value={deleteReason}
@@ -203,9 +205,9 @@ export default function InstructorDashboardPage() {
                 {requestingCourseId ? "Sending..." : "Submit Request"}
               </Button>
             </div>
-            {error && <p className="mt-3 text-sm text-rose-300">{error}</p>}
+            {error && <p className="mt-2.5 text-sm text-rose-300">{error}</p>}
           </div>
-        </div>
+        </Dialog>
       )}
     </div>
   );

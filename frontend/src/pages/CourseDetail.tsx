@@ -98,7 +98,7 @@ export default function CourseDetailPage() {
             lessons.map((lesson) => (
               <div
                 key={lesson.id}
-                className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4"
+                className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-3 sm:p-4"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>

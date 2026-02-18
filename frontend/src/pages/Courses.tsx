@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
+import InlineErrorState from "../components/common/InlineErrorState";
 import CourseThumbnail from "../components/CourseThumbnail";
 import GlassCard from "../components/ui/GlassCard";
 import SelectPopover from "../components/ui/SelectPopover";
 import { useAuth } from "../context/auth";
-import { apiFetch } from "../lib/api";
+import { apiFetch, ApiError } from "../lib/api";
 import { formatInstructorName } from "../lib/instructor";
 
 type Course = {
@@ -31,6 +32,9 @@ export default function CoursesPage() {
   const [filter, setFilter] = useState<"ALL" | "ENROLLED" | "NOT_ENROLLED">("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorStatusCode, setErrorStatusCode] = useState<number | undefined>(undefined);
+  const [errorDetails, setErrorDetails] = useState<string | undefined>(undefined);
+  const [reloadTick, setReloadTick] = useState(0);
 
   const filterOptions: Array<{ value: "ALL" | "ENROLLED" | "NOT_ENROLLED"; label: string }> = [
     { value: "ALL", label: "All" },
@@ -61,10 +65,20 @@ export default function CoursesPage() {
         setCourses(allCoursesResult.courses);
         setEnrollmentByCourseId(nextEnrollmentByCourseId);
         setError(null);
+        setErrorStatusCode(undefined);
+        setErrorDetails(undefined);
       })
       .catch((err) => {
         if (!active) return;
-        setError(err instanceof Error ? err.message : "Failed to load courses");
+        if (err instanceof ApiError) {
+          setError(err.message);
+          setErrorStatusCode(err.status);
+          setErrorDetails(err.code);
+        } else {
+          setError(err instanceof Error ? err.message : "Failed to load courses");
+          setErrorStatusCode(undefined);
+          setErrorDetails(undefined);
+        }
       })
       .finally(() => {
         if (!active) return;
@@ -74,7 +88,7 @@ export default function CoursesPage() {
     return () => {
       active = false;
     };
-  }, [isStudent]);
+  }, [isStudent, reloadTick]);
 
   const handleRequestAccess = async (courseId: string) => {
     if (!isStudent) return;
@@ -85,7 +99,15 @@ export default function CoursesPage() {
       );
       setEnrollmentByCourseId((prev) => ({ ...prev, [courseId]: result.enrollment.status }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to request access");
+      if (err instanceof ApiError) {
+        setError(err.message);
+        setErrorStatusCode(err.status);
+        setErrorDetails(err.code);
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to request access");
+        setErrorStatusCode(undefined);
+        setErrorDetails(undefined);
+      }
     }
   };
 
@@ -109,16 +131,22 @@ export default function CoursesPage() {
       {loading ? (
         <p className="text-sm text-[var(--text-muted)]">Loading...</p>
       ) : error ? (
-        <p className="text-sm text-rose-300">{error}</p>
+        <InlineErrorState
+          title="Unable to load courses"
+          message={error}
+          statusCode={errorStatusCode}
+          details={errorDetails}
+          onRetry={() => setReloadTick((value) => value + 1)}
+        />
       ) : (
-        <div className="grid gap-4">
-          <div className="grid gap-3 rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/60 p-3 sm:grid-cols-[1fr_auto]">
+        <div className="grid gap-3">
+          <div className="grid gap-2 rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/60 p-2.5 sm:grid-cols-[1fr_auto]">
             <input
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search courses by title or description"
-              className="w-full rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)]/70 px-3 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
+              className="w-full rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)]/70 px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
             />
             <SelectPopover
               items={filterOptions}
@@ -136,7 +164,7 @@ export default function CoursesPage() {
             return (
               <div
                 key={course.id}
-                className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4"
+                className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-3.5"
               >
                 <div className="grid gap-3 sm:grid-cols-[160px_1fr]">
                   <CourseThumbnail title={course.title} imageUrl={course.imageUrl} className="w-32 sm:w-36" />
@@ -149,7 +177,7 @@ export default function CoursesPage() {
                     <p className="text-xs text-[var(--text-muted)]">Lessons: {course.lessonsCount ?? 0}</p>
                   </div>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-2.5 flex flex-wrap gap-2">
                   {isStudent && (
                     <>
                       <Button type="button" variant="ghost" disabled={!canOpen} onClick={() => navigate(`/courses/${course.id}`)}>

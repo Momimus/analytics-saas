@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import Button from "../components/Button";
 import Input from "../components/Input";
 import Badge from "../components/ui/Badge";
+import Dialog from "../components/ui/Dialog";
 import GlassCard from "../components/ui/GlassCard";
 import { apiFetch } from "../lib/api";
 import { isDirectImageUrl } from "../lib/media";
@@ -430,12 +431,13 @@ export default function InstructorCourseEditorPage() {
       </GlassCard>
 
       {lessonToDelete && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4">
-          <div className="w-full max-w-md rounded-[var(--radius-xl)] border border-[color:var(--border)] bg-[color:var(--surface)] p-5 shadow-[var(--shadow-card)]">
+        <Dialog open={Boolean(lessonToDelete)} onClose={() => setLessonToDelete(null)} className="max-w-md">
+          <div>
             <h2 className="text-lg font-semibold text-[var(--text)]">Delete lesson?</h2>
             <p className="mt-2 text-sm text-[var(--text-muted)]">
               This will permanently delete <span className="text-[var(--text)]">{lessonToDelete.title}</span>.
             </p>
+            <p className="mt-1 text-xs text-amber-200">This action is destructive and cannot be undone.</p>
             <div className="mt-4 flex flex-wrap justify-end gap-2">
               <Button
                 type="button"
@@ -470,7 +472,7 @@ export default function InstructorCourseEditorPage() {
               </Button>
             </div>
           </div>
-        </div>
+        </Dialog>
       )}
     </div>
   );

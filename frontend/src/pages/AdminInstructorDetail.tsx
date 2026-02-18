@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Button from "../components/Button";
 import AdminSectionNav from "../components/admin/AdminSectionNav";
+import AdminFilterBar from "../components/admin/AdminFilterBar";
 import ConfirmActionModal from "../components/admin/ConfirmActionModal";
 import { AdminPagination, AdminTable } from "../components/admin/AdminTable";
 import ToastBanner from "../components/admin/ToastBanner";
 import GlassCard from "../components/ui/GlassCard";
+import Select from "../components/ui/Select";
 import StatCard from "../components/ui/StatCard";
 import type { AdminCourse, AdminInstructorDetail, AdminInstructorStudent } from "../lib/admin";
 import { getAdminInstructor, listAdminInstructorCourses, listAdminInstructorStudents } from "../lib/admin";
@@ -46,6 +48,13 @@ export default function AdminInstructorDetailPage() {
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
+  const courseFilters = [
+    ...(courseSearch.trim() ? [{ key: "search", label: "Search", value: courseSearch.trim(), onRemove: () => setCourseSearch("") }] : []),
+    ...(courseStatus !== "ALL" ? [{ key: "status", label: "Status", value: courseStatus, onRemove: () => setCourseStatus("ALL") }] : []),
+  ];
+  const studentFilters = [
+    ...(studentSearch.trim() ? [{ key: "search", label: "Search", value: studentSearch.trim(), onRemove: () => setStudentSearch("") }] : []),
+  ];
 
   const loadSummary = useCallback(async () => {
     if (!instructorId) return;
@@ -121,7 +130,7 @@ export default function AdminInstructorDetailPage() {
   };
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-5">
       <AdminSectionNav />
 
       <GlassCard
@@ -134,12 +143,27 @@ export default function AdminInstructorDetailPage() {
         ) : error ? (
           <p className="text-sm text-rose-300">{error}</p>
         ) : detail ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            <StatCard label="Status" value={detail.instructor.suspendedAt ? "Suspended" : "Active"} />
-            <StatCard label="Courses" value={detail.counts.totalCourses} />
-            <StatCard label="Published" value={detail.counts.publishedCourses} />
-            <StatCard label="Archived" value={detail.counts.archivedCourses} />
-            <StatCard label="Students" value={detail.counts.totalStudents} />
+          <div className="grid gap-4 lg:grid-cols-[1.1fr_1.4fr]">
+            <div className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)]/35 p-4">
+              <p className="text-xs uppercase tracking-[0.12em] text-[var(--text-muted)]">Instructor Profile</p>
+              <div className="mt-3 grid gap-2 text-sm text-[var(--text-muted)]">
+                <p>
+                  <span className="text-[var(--text)]">Status:</span> {detail.instructor.suspendedAt ? "Suspended" : "Active"}
+                </p>
+                <p>
+                  <span className="text-[var(--text)]">Email:</span> {detail.instructor.email}
+                </p>
+                <p>
+                  <span className="text-[var(--text)]">Created:</span> {new Date(detail.instructor.createdAt).toLocaleString()}
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <StatCard label="Courses" value={detail.counts.totalCourses} />
+              <StatCard label="Published" value={detail.counts.publishedCourses} />
+              <StatCard label="Archived" value={detail.counts.archivedCourses} />
+              <StatCard label="Students" value={detail.counts.totalStudents} />
+            </div>
           </div>
         ) : null}
 
@@ -148,7 +172,7 @@ export default function AdminInstructorDetailPage() {
             <Button
               type="button"
               variant="ghost"
-              className="h-10 px-4 py-0"
+              className="h-9 px-3 py-0 text-xs"
               onClick={() =>
                 setPendingAction({
                   endpoint: `/admin/users/${detail.instructor.id}/${detail.instructor.suspendedAt ? "activate" : "suspend"}`,
@@ -166,42 +190,52 @@ export default function AdminInstructorDetailPage() {
       </GlassCard>
 
       <GlassCard title="Instructor Courses" subtitle="Published, unpublished, and archived courses.">
-        <div className="mb-3 grid gap-2 md:grid-cols-4">
+        <AdminFilterBar
+          title="Course Filters"
+          helper="Inspect instructor-owned courses by search and lifecycle."
+          activeFilterCount={courseFilters.length}
+          hint="Filter owned courses by title and publish/archive state."
+          onReset={() => {
+            setCourseSearch("");
+            setCourseStatus("ALL");
+          }}
+          rightSlot={
+            <Button type="button" className="h-9 px-3 py-0 text-xs" onClick={() => void loadCourses()}>
+              Refresh
+            </Button>
+          }
+        >
           <input
             value={courseSearch}
             onChange={(event) => setCourseSearch(event.target.value)}
             placeholder="Search courses"
             className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[var(--text)]"
           />
-          <select
+          <Select
             value={courseStatus}
-            onChange={(event) => setCourseStatus(event.target.value as typeof courseStatus)}
-            className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[var(--text)]"
-          >
-            <option value="ALL">All statuses</option>
-            <option value="published">Published</option>
-            <option value="unpublished">Unpublished</option>
-            <option value="archived">Archived</option>
-          </select>
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-10 px-4 py-0"
-            onClick={() => {
-              setCourseSearch("");
-              setCourseStatus("ALL");
-            }}
-          >
-            Clear filters
-          </Button>
-          <Button type="button" className="h-10 px-4 py-0" onClick={() => void loadCourses()}>
-            Refresh
-          </Button>
-        </div>
+            onChange={(next) => setCourseStatus(next as typeof courseStatus)}
+            ariaLabel="Filter instructor courses by status"
+            items={[
+              { label: "All statuses", value: "ALL" },
+              { label: "Published", value: "published" },
+              { label: "Unpublished", value: "unpublished" },
+              { label: "Archived", value: "archived" },
+            ]}
+          />
+          <div />
+          <div />
+        </AdminFilterBar>
 
         <AdminTable
           loading={loading}
           error={error}
+          stickyHeader
+          zebraRows
+          appliedFilters={courseFilters}
+          onClearFilters={() => {
+            setCourseSearch("");
+            setCourseStatus("ALL");
+          }}
           hasRows={courses.length > 0}
           emptyMessage="No courses found."
           colCount={5}
@@ -226,7 +260,7 @@ export default function AdminInstructorDetailPage() {
                   <Button
                     type="button"
                     variant="ghost"
-                    className="h-10 px-3 py-0"
+                    className="h-9 px-2.5 py-0 text-xs"
                     onClick={() =>
                       setPendingAction({
                         endpoint: `/admin/courses/${course.id}/archive`,
@@ -256,29 +290,36 @@ export default function AdminInstructorDetailPage() {
       </GlassCard>
 
       <GlassCard title="Students" subtitle="Unique students with active enrollments in instructor courses.">
-        <div className="mb-3 grid gap-2 md:grid-cols-3">
+        <AdminFilterBar
+          title="Student Filters"
+          helper="Find enrolled students for this instructor."
+          activeFilterCount={studentFilters.length}
+          hint="Search active students by name or email."
+          onReset={() => setStudentSearch("")}
+          rightSlot={
+            <Button type="button" className="h-9 px-3 py-0 text-xs" onClick={() => void loadStudents()}>
+              Refresh
+            </Button>
+          }
+        >
           <input
             value={studentSearch}
             onChange={(event) => setStudentSearch(event.target.value)}
             placeholder="Search students"
             className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[var(--text)]"
           />
-          <Button
-            type="button"
-            variant="ghost"
-            className="h-10 px-4 py-0"
-            onClick={() => setStudentSearch("")}
-          >
-            Clear search
-          </Button>
-          <Button type="button" className="h-10 px-4 py-0" onClick={() => void loadStudents()}>
-            Refresh
-          </Button>
-        </div>
+          <div />
+          <div />
+          <div />
+        </AdminFilterBar>
 
         <AdminTable
           loading={loading}
           error={error}
+          stickyHeader
+          zebraRows
+          appliedFilters={studentFilters}
+          onClearFilters={() => setStudentSearch("")}
           hasRows={students.length > 0}
           emptyMessage="No students found."
           colCount={4}
@@ -328,3 +369,4 @@ export default function AdminInstructorDetailPage() {
     </div>
   );
 }
+

@@ -21,7 +21,7 @@ export default function AdminSectionNav() {
   const location = useLocation();
 
   return (
-    <nav className="overflow-x-auto">
+    <nav className="hidden overflow-x-auto sm:block">
       <div className="inline-flex min-w-full gap-2 rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)] p-1">
         {ADMIN_SECTIONS.map((item) => {
           const active = isActive(location.pathname, item.to);

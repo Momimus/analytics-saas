@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import Button from "../components/Button";
 import GlassCard from "../components/ui/GlassCard";
 import type { AdminCourse } from "../lib/admin";
@@ -8,6 +8,9 @@ import AdminSectionNav from "../components/admin/AdminSectionNav";
 import { AdminPagination, AdminTable } from "../components/admin/AdminTable";
 import ConfirmActionModal from "../components/admin/ConfirmActionModal";
 import ToastBanner from "../components/admin/ToastBanner";
+import AdminFilterBar from "../components/admin/AdminFilterBar";
+import Select from "../components/ui/Select";
+import DateInput from "../components/ui/DateInput";
 
 type DeletionRequest = {
   id: string;
@@ -38,8 +41,12 @@ export default function AdminCoursesPage() {
   const [deletionRequests, setDeletionRequests] = useState<DeletionRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorStatusCode, setErrorStatusCode] = useState<number | undefined>(undefined);
+  const [errorDetails, setErrorDetails] = useState<string | undefined>(undefined);
   const [stateFilter, setStateFilter] = useState<"ALL" | "published" | "unpublished" | "archived" | "pending">("ALL");
   const [search, setSearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
@@ -47,6 +54,12 @@ export default function AdminCoursesPage() {
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "error" } | null>(null);
+  const activeFilters = [
+    ...(search.trim() ? [{ key: "search", label: "Search", value: search.trim(), onRemove: () => setSearch("") }] : []),
+    ...(stateFilter !== "ALL" ? [{ key: "state", label: "State", value: stateFilter, onRemove: () => setStateFilter("ALL") }] : []),
+    ...(fromDate ? [{ key: "from", label: "From", value: fromDate, onRemove: () => setFromDate("") }] : []),
+    ...(toDate ? [{ key: "to", label: "To", value: toDate, onRemove: () => setToDate("") }] : []),
+  ];
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
@@ -69,8 +82,22 @@ export default function AdminCoursesPage() {
   useEffect(() => {
     setLoading(true);
     load()
-      .then(() => setError(null))
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load courses"))
+      .then(() => {
+        setError(null);
+        setErrorStatusCode(undefined);
+        setErrorDetails(undefined);
+      })
+      .catch((err) => {
+        if (err instanceof ApiError) {
+          setError(err.message);
+          setErrorStatusCode(err.status);
+          setErrorDetails(err.code);
+        } else {
+          setError(err instanceof Error ? err.message : "Failed to load courses");
+          setErrorStatusCode(undefined);
+          setErrorDetails(undefined);
+        }
+      })
       .finally(() => setLoading(false));
   }, [load]);
 
@@ -97,41 +124,96 @@ export default function AdminCoursesPage() {
     } catch (err) {
       const message = err instanceof ApiError ? err.message : "Action failed";
       setError(message);
+      setErrorStatusCode(err instanceof ApiError ? err.status : undefined);
+      setErrorDetails(err instanceof ApiError ? err.code : undefined);
       setToast({ message, tone: "error" });
     } finally {
       setActionBusy(false);
     }
   };
 
+  const visibleCourses = useMemo(() => {
+    const fromValue = fromDate ? new Date(fromDate) : null;
+    const toValue = toDate ? new Date(toDate) : null;
+    if (toValue) {
+      toValue.setHours(23, 59, 59, 999);
+    }
+
+    return courses.filter((course) => {
+      const updatedAt = new Date(course.updatedAt);
+      if (Number.isNaN(updatedAt.getTime())) return true;
+      if (fromValue && updatedAt < fromValue) return false;
+      if (toValue && updatedAt > toValue) return false;
+      return true;
+    });
+  }, [courses, fromDate, toDate]);
+
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-5">
       <AdminSectionNav />
 
       <GlassCard title="Courses" subtitle="Moderation controls for publishing and archiving.">
-        <div className="mb-3 grid gap-2 md:grid-cols-4">
+        <AdminFilterBar
+          title="Course Filters"
+          helper="Refine moderation queue by state, keyword, and date window."
+          activeFilterCount={activeFilters.length}
+          hint="Filter by title/state and optional updated date range."
+          onReset={() => {
+            setSearch("");
+            setStateFilter("ALL");
+            setFromDate("");
+            setToDate("");
+          }}
+        >
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search by title"
             className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[var(--text)]"
           />
-          <select
+          <Select
             value={stateFilter}
-            onChange={(event) => setStateFilter(event.target.value as typeof stateFilter)}
-            className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[var(--text)]"
-          >
-            <option value="ALL">All</option>
-            <option value="published">Published</option>
-            <option value="unpublished">Unpublished</option>
-            <option value="archived">Archived</option>
-            <option value="pending">Pending requests</option>
-          </select>
-          <div className="text-xs text-[var(--text-muted)] md:col-span-2 md:flex md:items-center">
-            Publish and archive actions are moderation events and require a reason.
-          </div>
-        </div>
+            onChange={(next) => setStateFilter(next as typeof stateFilter)}
+            ariaLabel="Filter courses by state"
+            items={[
+              { label: "All", value: "ALL" },
+              { label: "Published", value: "published" },
+              { label: "Unpublished", value: "unpublished" },
+              { label: "Archived", value: "archived" },
+              { label: "Pending requests", value: "pending" },
+            ]}
+          />
+          <DateInput value={fromDate} onChange={setFromDate} placeholder="From date" ariaLabel="Courses from date" />
+          <DateInput value={toDate} onChange={setToDate} placeholder="To date" ariaLabel="Courses to date" />
+        </AdminFilterBar>
+        <p className="mb-3 text-xs text-[var(--text-muted)]">
+          Publish and archive actions are moderation events and require a reason.
+        </p>
 
-        <AdminTable loading={loading} error={error} hasRows={courses.length > 0} emptyMessage="No courses found." colCount={4}>
+        <AdminTable
+          loading={loading}
+          error={error}
+          errorStatusCode={errorStatusCode}
+          errorDetails={errorDetails}
+          onRetry={() => void load()}
+          stickyHeader
+          zebraRows
+          appliedFilters={activeFilters}
+          onClearFilters={() => {
+            setSearch("");
+            setStateFilter("ALL");
+            setFromDate("");
+            setToDate("");
+          }}
+          hasRows={visibleCourses.length > 0}
+          emptyMessage="No results. Adjust filters or clear date range."
+          colCount={4}
+          emptyAction={
+            <Button type="button" variant="ghost" className="h-9 px-2.5 py-0 text-xs" onClick={() => void load()}>
+              Reload Courses
+            </Button>
+          }
+        >
           <thead>
             <tr className="text-xs uppercase tracking-[0.12em] text-[var(--text-muted)]">
               <th className="px-3 py-2">Course</th>
@@ -141,7 +223,7 @@ export default function AdminCoursesPage() {
             </tr>
           </thead>
           <tbody>
-            {courses.map((course) => (
+            {visibleCourses.map((course) => (
               <tr key={course.id} className="border-t border-[color:var(--border)] text-[var(--text)]">
                 <td className="px-3 py-2">
                   <p className="font-medium">{course.title}</p>
@@ -158,7 +240,7 @@ export default function AdminCoursesPage() {
                     <Button
                       type="button"
                       variant="ghost"
-                      className="h-10 px-3 py-0"
+                      className="h-9 px-2.5 py-0 text-xs"
                       onClick={() =>
                         setPendingAction({
                           endpoint: `/admin/courses/${course.id}/${course.isPublished ? "unpublish" : "publish"}`,
@@ -175,7 +257,7 @@ export default function AdminCoursesPage() {
                     <Button
                       type="button"
                       variant="ghost"
-                      className="h-10 px-3 py-0"
+                      className="h-9 px-2.5 py-0 text-xs"
                       onClick={() =>
                         setPendingAction({
                           endpoint: `/admin/courses/${course.id}/archive`,
@@ -222,7 +304,7 @@ export default function AdminCoursesPage() {
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Button
                     type="button"
-                    className="h-10 px-3 py-0"
+                    className="h-9 px-2.5 py-0 text-xs"
                     disabled={request.status !== "PENDING"}
                     onClick={() =>
                       setPendingAction({
@@ -240,7 +322,7 @@ export default function AdminCoursesPage() {
                   <Button
                     type="button"
                     variant="ghost"
-                    className="h-10 px-3 py-0"
+                    className="h-9 px-2.5 py-0 text-xs"
                     disabled={request.status !== "PENDING"}
                     onClick={() =>
                       setPendingAction({
@@ -277,3 +359,4 @@ export default function AdminCoursesPage() {
     </div>
   );
 }
+

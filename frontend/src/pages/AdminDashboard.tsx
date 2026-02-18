@@ -121,22 +121,28 @@ export default function AdminDashboardPage() {
   };
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-5">
       <AdminSectionNav />
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Pending Enrollments" value={metrics?.enrollments.pendingRequests ?? "--"} />
-        <StatCard label="Pending Deletions" value={metrics?.deletionRequests.pending ?? "--"} />
-        <StatCard label="Suspended Users" value={metrics?.users.suspended ?? "--"} />
-        <StatCard label="Published Courses" value={metrics?.courses.published ?? "--"} />
-        <StatCard label="Unpublished Courses" value={metrics?.courses.unpublished ?? "--"} />
-        <StatCard label="Archived Courses" value={metrics?.courses.archived ?? "--"} />
-        <StatCard label="Total Instructors" value={metrics?.instructors.total ?? "--"} />
-        <StatCard label="Suspended Instructors" value={metrics?.instructors.suspended ?? "--"} />
-      </div>
+      <section className="grid gap-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">System Overview</h2>
+          <span className="text-xs text-[var(--text-muted)]">Live moderation indicators</span>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard loading={loading} label="Pending Enrollments" value={metrics?.enrollments.pendingRequests ?? "--"} hint="Awaiting decision" />
+          <StatCard loading={loading} label="Pending Deletions" value={metrics?.deletionRequests.pending ?? "--"} hint="Course archive queue" />
+          <StatCard loading={loading} label="Suspended Users" value={metrics?.users.suspended ?? "--"} hint="Account moderation" />
+          <StatCard loading={loading} label="Published Courses" value={metrics?.courses.published ?? "--"} hint="Visible catalog" />
+          <StatCard loading={loading} label="Unpublished Courses" value={metrics?.courses.unpublished ?? "--"} hint="Draft/private" />
+          <StatCard loading={loading} label="Archived Courses" value={metrics?.courses.archived ?? "--"} hint="Retained history" />
+          <StatCard loading={loading} label="Total Instructors" value={metrics?.instructors.total ?? "--"} hint="Creator accounts" />
+          <StatCard loading={loading} label="Suspended Instructors" value={metrics?.instructors.suspended ?? "--"} hint="Restricted creators" />
+        </div>
+      </section>
 
       <GlassCard title="Recent Activity" subtitle="Latest admin audit events with quick filters.">
-        <div className="mb-3 grid gap-2 md:grid-cols-3">
+        <div className="mb-2.5 grid gap-1.5 md:grid-cols-3">
           <input
             value={auditActionFilter}
             onChange={(event) => setAuditActionFilter(event.target.value)}
@@ -149,7 +155,7 @@ export default function AdminDashboardPage() {
             placeholder="Filter entity type"
             className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[var(--text)]"
           />
-          <Button type="button" className="h-10 px-4 py-0" onClick={() => void load()}>
+          <Button type="button" className="h-9 px-3 py-0 text-xs" onClick={() => void load()}>
             Refresh
           </Button>
         </div>
@@ -191,7 +197,7 @@ export default function AdminDashboardPage() {
         subtitle="Pending enrollment and deletion request actions."
         actions={<Link to="/admin/inbox" className="text-sm text-[var(--accent)] hover:underline">Open full inbox</Link>}
       >
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-3 lg:grid-cols-2">
           <div className="rounded-[var(--radius-md)] border border-[color:var(--border)] p-3">
             <h3 className="text-sm font-semibold text-[var(--text)]">Pending enrollments</h3>
             {pendingEnrollments.length === 0 ? (

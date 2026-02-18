@@ -22,6 +22,8 @@ import AdminAuditLogsPage from "./pages/AdminAuditLogs";
 import AdminInstructorsPage from "./pages/AdminInstructors";
 import AdminInstructorDetailPage from "./pages/AdminInstructorDetail";
 import AdminInboxPage from "./pages/AdminInbox";
+import NotFound404Page from "./pages/NotFound404";
+import Forbidden403Page from "./pages/Forbidden403";
 import AppShell from "./components/AppShell";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuth } from "./context/auth";
@@ -48,8 +50,7 @@ function PublicOnlyRoute({ children }: PropsWithChildren) {
 function RoleProtectedRoute({
   children,
   roles,
-  redirectMessage,
-}: PropsWithChildren<{ roles: Array<"ADMIN" | "INSTRUCTOR" | "STUDENT">; redirectMessage?: string }>) {
+}: PropsWithChildren<{ roles: Array<"ADMIN" | "INSTRUCTOR" | "STUDENT"> }>) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -65,7 +66,7 @@ function RoleProtectedRoute({
   }
 
   if (!roles.includes(user.role)) {
-    return <Navigate to="/dashboard" replace state={redirectMessage ? { notice: redirectMessage } : undefined} />;
+    return <Forbidden403Page currentRole={user.role} requiredRoles={roles} />;
   }
 
   return <>{children}</>;
@@ -198,7 +199,7 @@ export default function App() {
         <Route
           path="/admin"
           element={
-            <RoleProtectedRoute roles={["ADMIN"]} redirectMessage="Not authorized to access Admin.">
+            <RoleProtectedRoute roles={["ADMIN"]}>
               <AdminDashboardPage />
             </RoleProtectedRoute>
           }
@@ -206,7 +207,7 @@ export default function App() {
         <Route
           path="/admin/users"
           element={
-            <RoleProtectedRoute roles={["ADMIN"]} redirectMessage="Not authorized to access Admin.">
+            <RoleProtectedRoute roles={["ADMIN"]}>
               <AdminUsersPage />
             </RoleProtectedRoute>
           }
@@ -214,7 +215,7 @@ export default function App() {
         <Route
           path="/admin/inbox"
           element={
-            <RoleProtectedRoute roles={["ADMIN"]} redirectMessage="Not authorized to access Admin.">
+            <RoleProtectedRoute roles={["ADMIN"]}>
               <AdminInboxPage />
             </RoleProtectedRoute>
           }
@@ -222,7 +223,7 @@ export default function App() {
         <Route
           path="/admin/instructors"
           element={
-            <RoleProtectedRoute roles={["ADMIN"]} redirectMessage="Not authorized to access Admin.">
+            <RoleProtectedRoute roles={["ADMIN"]}>
               <AdminInstructorsPage />
             </RoleProtectedRoute>
           }
@@ -230,7 +231,7 @@ export default function App() {
         <Route
           path="/admin/instructors/:id"
           element={
-            <RoleProtectedRoute roles={["ADMIN"]} redirectMessage="Not authorized to access Admin.">
+            <RoleProtectedRoute roles={["ADMIN"]}>
               <AdminInstructorDetailPage />
             </RoleProtectedRoute>
           }
@@ -238,7 +239,7 @@ export default function App() {
         <Route
           path="/admin/courses"
           element={
-            <RoleProtectedRoute roles={["ADMIN"]} redirectMessage="Not authorized to access Admin.">
+            <RoleProtectedRoute roles={["ADMIN"]}>
               <AdminCoursesPage />
             </RoleProtectedRoute>
           }
@@ -246,7 +247,7 @@ export default function App() {
         <Route
           path="/admin/enrollments"
           element={
-            <RoleProtectedRoute roles={["ADMIN"]} redirectMessage="Not authorized to access Admin.">
+            <RoleProtectedRoute roles={["ADMIN"]}>
               <AdminEnrollmentsPage />
             </RoleProtectedRoute>
           }
@@ -254,13 +255,13 @@ export default function App() {
         <Route
           path="/admin/audit-logs"
           element={
-            <RoleProtectedRoute roles={["ADMIN"]} redirectMessage="Not authorized to access Admin.">
+            <RoleProtectedRoute roles={["ADMIN"]}>
               <AdminAuditLogsPage />
             </RoleProtectedRoute>
           }
         />
         <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<NotFound404Page />} />
       </Routes>
     </AppShell>
   );

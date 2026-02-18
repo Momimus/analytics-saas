@@ -84,7 +84,7 @@ export default function MyCoursesPage() {
       ) : (
         <div className="grid gap-4">
           {courses.map((course) => (
-            <div key={course.id} className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-4">
+            <div key={course.id} className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/70 p-3 sm:p-4">
               <div className="grid gap-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-base font-semibold text-[var(--text)]">{course.title}</p>
