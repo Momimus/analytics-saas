@@ -2,6 +2,11 @@
 
 Production-ready SaaS foundation built with React + Vite + TypeScript (frontend) and Express + TypeScript + Prisma + PostgreSQL (backend).
 
+This baseline is admin-only:
+- Public registration is disabled.
+- Only `ADMIN` role is supported.
+- Seed creates or updates a single admin account from env vars.
+
 ## Stack
 - Frontend: React 19, TypeScript, Vite, Tailwind CSS
 - Backend: Node.js, Express, TypeScript
@@ -23,11 +28,15 @@ Production-ready SaaS foundation built with React + Vite + TypeScript (frontend)
    - `.env.example` to `.env`
    - `backend/.env.example` to `backend/.env`
    - `frontend/.env.example` to `frontend/.env`
-3. Start PostgreSQL (optional via Docker):
+3. Configure admin seed env in `backend/.env`:
+   - `ADMIN_EMAIL=admin@example.com`
+   - `ADMIN_PASSWORD=change-me-now`
+   - `ADMIN_NAME=Platform Admin`
+4. Start PostgreSQL (optional via Docker):
    - `docker compose up -d`
-4. Apply Prisma migrations:
+5. Apply Prisma migrations to a fresh database:
    - `npm --workspace backend run prisma -- migrate deploy`
-5. (Optional) Seed an admin user:
+6. Seed the admin user:
    - `npm --workspace backend run db:seed`
 
 ## Run
@@ -49,7 +58,6 @@ Production-ready SaaS foundation built with React + Vite + TypeScript (frontend)
 ## Core Routes
 - Frontend:
   - `/login`
-  - `/register`
   - `/forgot-password`
   - `/reset-password`
   - `/profile`
@@ -58,11 +66,11 @@ Production-ready SaaS foundation built with React + Vite + TypeScript (frontend)
   - `/admin/audit-logs`
 - Backend:
   - `/auth/csrf`
-  - `/auth/register`
+  - `/auth/register` (disabled, returns 404)
   - `/auth/login`
   - `/auth/logout`
   - `/auth/forgot-password`
   - `/auth/reset-password`
   - `/me` (GET/PATCH)
-  - `/admin/users/*`
+  - `/admin/users`
   - `/admin/audit-logs`

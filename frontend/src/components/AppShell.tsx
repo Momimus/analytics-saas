@@ -17,17 +17,17 @@ export default function AppShell({ children }: PropsWithChildren) {
   const navItems = useMemo(
     () => {
       if (!isLoggedIn) {
-        return [
-          { to: "/login", label: "Login" },
-          { to: "/register", label: "Register" },
-        ];
+        return [{ to: "/login", label: "Login" }];
       }
 
       if (user?.role === "ADMIN") {
         return [
           { to: "/admin/analytics", label: "Analytics" },
+          { to: "/admin/products", label: "Products" },
+          { to: "/admin/orders", label: "Orders" },
+          { to: "/admin/events", label: "Events" },
           { to: "/admin/users", label: "Users" },
-          { to: "/profile", label: "Profile" },
+          { to: "/admin/settings", label: "Settings" },
         ];
       }
 
@@ -44,11 +44,13 @@ export default function AppShell({ children }: PropsWithChildren) {
 
   const pageTitle = useMemo(() => {
     if (location.pathname.startsWith("/admin/analytics")) return "Analytics";
-    if (location.pathname.startsWith("/admin/audit-logs")) return "Audit Logs";
-    if (location.pathname.startsWith("/admin/users")) return "Admin Users";
+    if (location.pathname.startsWith("/admin/products")) return "Products";
+    if (location.pathname.startsWith("/admin/orders")) return "Orders";
+    if (location.pathname.startsWith("/admin/events")) return "Events";
+    if (location.pathname.startsWith("/admin/users")) return "Users";
+    if (location.pathname.startsWith("/admin/settings")) return "Settings";
     if (location.pathname.startsWith("/admin")) return "Admin";
     if (location.pathname.startsWith("/profile")) return "Profile";
-    if (location.pathname.startsWith("/register")) return "Create Account";
     if (location.pathname.startsWith("/forgot-password")) return "Forgot Password";
     if (location.pathname.startsWith("/reset-password")) return "Reset Password";
     return "Workspace";

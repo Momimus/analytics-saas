@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import UserMenuDropdown from "./UserMenuDropdown";
 
-type Role = "ADMIN" | "INSTRUCTOR" | "STUDENT";
+type Role = "ADMIN";
 
 type NavItem = {
   to: string;

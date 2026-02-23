@@ -3,7 +3,7 @@ import { apiFetch } from "./api";
 export type AdminUser = {
   id: string;
   email: string;
-  role: "ADMIN" | "INSTRUCTOR" | "STUDENT";
+  role: "ADMIN";
   fullName: string | null;
   createdAt: string;
   suspendedAt: string | null;

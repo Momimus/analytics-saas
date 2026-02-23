@@ -3,8 +3,8 @@ import Button from "../components/Button";
 import GlassCard from "../components/ui/GlassCard";
 
 type Forbidden403Props = {
-  currentRole?: "ADMIN" | "INSTRUCTOR" | "STUDENT" | null;
-  requiredRoles?: Array<"ADMIN" | "INSTRUCTOR" | "STUDENT">;
+  currentRole?: "ADMIN" | null;
+  requiredRoles?: Array<"ADMIN">;
 };
 
 export default function Forbidden403Page({ currentRole, requiredRoles }: Forbidden403Props) {

@@ -2,7 +2,11 @@ import { Link, useLocation } from "react-router-dom";
 
 const ADMIN_SECTIONS = [
   { to: "/admin/analytics", label: "Analytics" },
+  { to: "/admin/products", label: "Products" },
+  { to: "/admin/orders", label: "Orders" },
+  { to: "/admin/events", label: "Events" },
   { to: "/admin/users", label: "Users" },
+  { to: "/admin/settings", label: "Settings" },
 ] as const;
 
 function isActive(pathname: string, to: string) {

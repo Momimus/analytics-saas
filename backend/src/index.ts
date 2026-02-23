@@ -32,7 +32,6 @@ const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? "auth_token";
 const AUTH_COOKIE_SAMESITE = process.env.AUTH_COOKIE_SAMESITE ?? "lax";
 const CSRF_COOKIE_NAME = process.env.CSRF_COOKIE_NAME ?? "csrf_token";
 const CSRF_HEADER_NAME = (process.env.CSRF_HEADER_NAME ?? "x-csrf-token").toLowerCase();
-const RETURN_REGISTER_TOKEN = process.env.RETURN_REGISTER_TOKEN === "true";
 
 if (JWT_SECRET.length === 0) {
   if (IS_PROD) {
@@ -176,52 +175,7 @@ app.get("/auth/csrf", (_req, res) => {
 });
 
 app.post("/auth/register", authIpLimiter, async (req, res) => {
-  const { email, password, role } = req.body as {
-    email?: string;
-    password?: string;
-    role?: string;
-  };
-
-  if (!email || !password) {
-    return sendError(res, 400, "Email and password are required", "VALIDATION_ERROR");
-  }
-
-  if (role !== undefined) {
-    return sendError(res, 400, "Role cannot be set via registration", "VALIDATION_ERROR");
-  }
-
-  if (password.length < 6) {
-    return sendError(res, 400, "Password must be at least 6 characters", "VALIDATION_ERROR");
-  }
-
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    return sendError(res, 409, "Email already registered", "CONFLICT");
-  }
-
-  const passwordHash = await bcrypt.hash(password, 10);
-
-  const user = await prisma.user.create({
-    data: {
-      email,
-      passwordHash,
-      role: Role.STUDENT,
-    },
-    select: {
-      id: true,
-      email: true,
-      role: true,
-      createdAt: true,
-    },
-  });
-
-  const token = signToken({ id: user.id, role: user.role });
-  setAuthCookie(res, token);
-  issueCsrfToken(res);
-  return res.status(201).json({
-    ...(RETURN_REGISTER_TOKEN ? { token } : {}),
-    user,
-  });
+  return sendError(res, 404, "Registration is disabled", "NOT_FOUND");
 });
 
 app.post("/auth/login", authIpLimiter, loginIdentityLimiter, async (req, res) => {

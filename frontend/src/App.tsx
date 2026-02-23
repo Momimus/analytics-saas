@@ -1,12 +1,14 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import LoginPage from "./pages/Login";
-import RegisterPage from "./pages/Register";
 import ProfilePage from "./pages/Profile";
 import ForgotPasswordPage from "./pages/ForgotPassword";
 import ResetPasswordPage from "./pages/ResetPassword";
 import AdminAnalyticsPage from "./pages/AdminAnalytics";
+import AdminProductsPage from "./pages/AdminProducts";
+import AdminOrdersPage from "./pages/AdminOrders";
+import AdminEventsPage from "./pages/AdminEvents";
 import AdminUsersPage from "./pages/AdminUsers";
-import AdminAuditLogsPage from "./pages/AdminAuditLogs";
+import AdminSettingsPage from "./pages/AdminSettings";
 import NotFound404Page from "./pages/NotFound404";
 import Forbidden403Page from "./pages/Forbidden403";
 import AppShell from "./components/AppShell";
@@ -26,7 +28,7 @@ function PublicOnlyRoute({ children }: PropsWithChildren) {
   }
 
   if (user) {
-    return <Navigate to={user.role === "ADMIN" ? "/admin/analytics" : "/profile"} replace />;
+    return <Navigate to="/admin/analytics" replace />;
   }
 
   return <>{children}</>;
@@ -35,7 +37,7 @@ function PublicOnlyRoute({ children }: PropsWithChildren) {
 function RoleProtectedRoute({
   children,
   roles,
-}: PropsWithChildren<{ roles: Array<"ADMIN" | "INSTRUCTOR" | "STUDENT"> }>) {
+}: PropsWithChildren<{ roles: Array<"ADMIN"> }>) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -66,14 +68,6 @@ export default function App() {
           element={
             <PublicOnlyRoute>
               <LoginPage />
-            </PublicOnlyRoute>
-          }
-        />
-        <Route
-          path="/register"
-          element={
-            <PublicOnlyRoute>
-              <RegisterPage />
             </PublicOnlyRoute>
           }
         />
@@ -126,6 +120,30 @@ export default function App() {
           }
         />
         <Route
+          path="/admin/products"
+          element={
+            <RoleProtectedRoute roles={["ADMIN"]}>
+              <AdminProductsPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/orders"
+          element={
+            <RoleProtectedRoute roles={["ADMIN"]}>
+              <AdminOrdersPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/events"
+          element={
+            <RoleProtectedRoute roles={["ADMIN"]}>
+              <AdminEventsPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/users"
           element={
             <RoleProtectedRoute roles={["ADMIN"]}>
@@ -134,10 +152,10 @@ export default function App() {
           }
         />
         <Route
-          path="/admin/audit-logs"
+          path="/admin/settings"
           element={
             <RoleProtectedRoute roles={["ADMIN"]}>
-              <AdminAuditLogsPage />
+              <AdminSettingsPage />
             </RoleProtectedRoute>
           }
         />

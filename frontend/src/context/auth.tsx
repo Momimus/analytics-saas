@@ -4,7 +4,7 @@ import { apiFetch } from "../lib/api";
 export type User = {
   id: string;
   email: string;
-  role: "ADMIN" | "INSTRUCTOR" | "STUDENT";
+  role: "ADMIN";
   createdAt?: string;
   fullName?: string | null;
   phone?: string | null;

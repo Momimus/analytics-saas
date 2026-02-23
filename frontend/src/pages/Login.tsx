@@ -16,7 +16,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const registered = searchParams.get("registered");
   const reset = searchParams.get("reset");
 
   return (
@@ -35,12 +34,12 @@ export default function LoginPage() {
             if (loading) return;
             setLoading(true);
             try {
-              const result = await apiFetch<{ user: { id: string; email: string; role: "ADMIN" | "INSTRUCTOR" | "STUDENT" } }>("/auth/login", {
+              await apiFetch<{ user: { id: string; email: string; role: "ADMIN" } }>("/auth/login", {
                 method: "POST",
                 body: JSON.stringify({ email, password }),
               });
               await login();
-              navigate(result.user.role === "ADMIN" ? "/admin/analytics" : "/profile", { replace: true });
+              navigate("/admin/analytics", { replace: true });
             } catch (err) {
               setError(err instanceof Error ? err.message : "Login failed");
             } finally {
@@ -98,7 +97,6 @@ export default function LoginPage() {
               </button>
             </div>
           </label>
-          {registered && <p className="text-sm text-emerald-300">Account created. Please sign in.</p>}
           {reset && <p className="text-sm text-emerald-300">Password updated. Please sign in.</p>}
           {error && <p className="text-sm text-rose-300 break-words">{error}</p>}
           <div className="pt-1">
@@ -108,9 +106,6 @@ export default function LoginPage() {
           </div>
         </form>
         <div className="mt-4 grid gap-2 text-center text-sm text-[var(--text-muted)]">
-          <Link className="text-[var(--accent)] hover:underline" to="/register">
-            Don&apos;t have an account? Create account
-          </Link>
           <Link className="text-[var(--accent)] hover:underline" to="/forgot-password">
             Forgot password?
           </Link>

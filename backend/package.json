@@ -9,7 +9,6 @@
     "start": "node dist/index.js",
     "prisma": "prisma",
     "db:seed": "prisma db seed",
-    "make:role": "tsx scripts/promote-user-role.ts",
     "lint": "eslint \"src/**/*.ts\" \"vitest.config.ts\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

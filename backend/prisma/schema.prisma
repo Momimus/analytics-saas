@@ -12,15 +12,13 @@ datasource db {
 
 enum Role {
   ADMIN
-  INSTRUCTOR
-  STUDENT
 }
 
 model User {
   id           String               @id @default(cuid())
   email        String               @unique
   passwordHash String
-  role         Role                 @default(STUDENT)
+  role         Role                 @default(ADMIN)
   suspendedAt  DateTime?
   fullName     String?
   phone        String?

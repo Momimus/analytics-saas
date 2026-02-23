@@ -1,5 +1,4 @@
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import request from "supertest";
 
 process.env.NODE_ENV = "test";
@@ -38,7 +37,7 @@ describe("backend route behavior", () => {
       id: "user-1",
       email: "student@example.com",
       passwordHash,
-      role: "STUDENT",
+      role: "ADMIN",
       createdAt: new Date(),
     });
 
@@ -78,23 +77,11 @@ describe("backend route behavior", () => {
     expect(logoutResponse.body.ok).toBe(true);
   });
 
-  it("blocks admin users route when authenticated user is not admin", async () => {
-    prismaMock.user.findUnique.mockResolvedValue({
-      id: "student-1",
-      role: "STUDENT",
-    });
-
-    const token = jwt.sign(
-      { sub: "student-1", role: "STUDENT" },
-      "test-secret",
-      { expiresIn: "1h" }
-    );
-
+  it("requires authentication for admin users route", async () => {
     const response = await request(app)
-      .get("/admin/users")
-      .set("Cookie", `auth_token=${token}`);
+      .get("/admin/users");
 
-    expect(response.status).toBe(403);
-    expect(response.body.error).toBe("FORBIDDEN");
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe("UNAUTHORIZED");
   });
 });

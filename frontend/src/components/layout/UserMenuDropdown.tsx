@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, UserCircle2 } from "lucide-react";
 import Badge from "../ui/Badge";
 
-type Role = "ADMIN" | "INSTRUCTOR" | "STUDENT";
+type Role = "ADMIN";
 
 type UserMenuDropdownProps = {
   role: Role;
@@ -54,10 +54,13 @@ export default function UserMenuDropdown({
     ...(role === "ADMIN"
       ? [
           { key: "admin-analytics", label: "Analytics", path: "/admin/analytics" } satisfies MenuItem,
+          { key: "admin-products", label: "Products", path: "/admin/products" } satisfies MenuItem,
+          { key: "admin-orders", label: "Orders", path: "/admin/orders" } satisfies MenuItem,
+          { key: "admin-events", label: "Events", path: "/admin/events" } satisfies MenuItem,
           { key: "admin-users", label: "Users", path: "/admin/users" } satisfies MenuItem,
+          { key: "admin-settings", label: "Settings", path: "/admin/settings" } satisfies MenuItem,
         ]
       : []),
-    { key: "profile", label: "Profile", path: "/profile" },
     { key: "theme", label: "Toggle Theme", action: onToggleTheme },
     { key: "logout", label: "Logout", action: onLogout },
   ];
@@ -83,7 +86,7 @@ export default function UserMenuDropdown({
         <div className="mb-1 rounded-[var(--radius-sm)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface-strong)]/50 px-3 py-2">
           <p className="truncate text-[11px] text-[var(--text-muted)]">{userEmail ?? "Signed-in user"}</p>
           <div className="mt-1">
-            <Badge tone={role === "STUDENT" ? "neutral" : "success"} className="px-2 py-0.5 text-[10px]">
+            <Badge tone="success" className="px-2 py-0.5 text-[10px]">
               {role}
             </Badge>
           </div>
