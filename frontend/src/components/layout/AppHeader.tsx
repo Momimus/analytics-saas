@@ -20,9 +20,6 @@ type AppHeaderProps = {
   onLogout: () => Promise<void>;
   onToggleMobileMenu: () => void;
   onToggleTheme: () => void;
-  pendingCount: number;
-  showRequestsBadge: boolean;
-  pulseRequestsDot: boolean;
 };
 
 export default function AppHeader({
@@ -36,19 +33,16 @@ export default function AppHeader({
   onLogout,
   onToggleMobileMenu,
   onToggleTheme,
-  pendingCount,
-  showRequestsBadge,
-  pulseRequestsDot,
 }: AppHeaderProps) {
   return (
     <header className="sticky top-0 z-50 border-b border-[color:var(--ui-border-soft)] bg-[color:var(--ui-glass-panel)]/90 backdrop-blur-xl">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--radius-md)] bg-[var(--accent)]/15 text-sm font-semibold text-[var(--accent)] shadow-[var(--shadow-accent)]">
-            LMS
+            AS
           </span>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-[var(--text)] sm:text-base">Learning Suite</p>
+            <p className="truncate text-sm font-semibold text-[var(--text)] sm:text-base">Analytics SaaS</p>
             <p className="truncate text-xs text-[var(--text-muted)]">{pageTitle}</p>
           </div>
         </div>
@@ -105,9 +99,6 @@ export default function AppHeader({
               <UserMenuDropdown
                 role={role}
                 userEmail={userEmail ?? null}
-                pendingCount={pendingCount}
-                showRequestsBadge={showRequestsBadge}
-                pulseRequestsDot={pulseRequestsDot}
                 onNavigate={onNavigate}
                 onLogout={onLogout}
                 onToggleTheme={onToggleTheme}

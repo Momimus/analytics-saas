@@ -98,7 +98,7 @@ export default function RegisterPage() {
   return (
     <div className="fixed inset-0 overflow-y-auto px-4 py-6 pointer-events-none">
       <div className="flex min-h-full w-full items-center justify-center">
-      <GlassCard title="Create account" subtitle="Set up your LMS profile in seconds." className="pointer-events-auto w-full max-w-md p-5 sm:p-6">
+      <GlassCard title="Create account" subtitle="Set up your Analytics SaaS profile in seconds." className="pointer-events-auto w-full max-w-md p-5 sm:p-6">
         <form
           ref={formRef}
           className="grid gap-4"

@@ -23,8 +23,8 @@ export default function Forbidden403Page({ currentRole, requiredRoles }: Forbidd
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" onClick={() => navigate("/dashboard")}>
-            Go to Dashboard
+          <Button type="button" onClick={() => navigate("/profile")}>
+            Go to Profile
           </Button>
           <Button type="button" variant="ghost" onClick={() => navigate(-1)}>
             Back

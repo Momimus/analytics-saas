@@ -6,12 +6,9 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { Role } from "@prisma/client";
 import prisma from "./lib/prisma.js";
-import courseRoutes from "./routes/courses.js";
-import instructorRoutes from "./routes/instructor.js";
 import adminRoutes from "./routes/admin.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { requireAuth, type AuthRequest } from "./middleware/auth.js";
-import studentRoutes from "./routes/student.js";
 import { validateProfileUpdatePayload } from "./validation/profileValidation.js";
 import { sendError } from "./utils/httpError.js";
 import { createCsrfProtection } from "./middleware/csrf.js";
@@ -20,9 +17,8 @@ import { createRateLimiter, hashIdentifier } from "./middleware/rateLimit.js";
 const app = express();
 
 const PORT = Number(process.env.PORT ?? 4000);
-const JWT_SECRET = process.env.JWT_SECRET ?? "";
+const JWT_SECRET = process.env.JWT_SECRET?.trim() ?? "";
 const IS_PROD = process.env.NODE_ENV === "production";
-const IS_TEST = process.env.NODE_ENV === "test";
 const ALLOWED_ORIGINS = (
   process.env.ALLOWED_ORIGINS ??
   process.env.CSRF_ALLOWED_ORIGINS ??
@@ -38,13 +34,11 @@ const CSRF_COOKIE_NAME = process.env.CSRF_COOKIE_NAME ?? "csrf_token";
 const CSRF_HEADER_NAME = (process.env.CSRF_HEADER_NAME ?? "x-csrf-token").toLowerCase();
 const RETURN_REGISTER_TOKEN = process.env.RETURN_REGISTER_TOKEN === "true";
 
-if (!JWT_SECRET) {
+if (JWT_SECRET.length === 0) {
   if (IS_PROD) {
-    throw new Error("JWT_SECRET must be set in production");
+    throw new Error("JWT_SECRET must be a non-empty value in production");
   }
-  if (!IS_TEST) {
-    console.warn("JWT_SECRET is not set. Dev mode is running with insecure auth secret behavior.");
-  }
+  console.warn("JWT_SECRET is empty. Non-production mode allows this, but it is insecure.");
 }
 
 if (!IS_PROD && (prisma as unknown as Record<string, unknown>).passwordResetToken === undefined) {
@@ -121,9 +115,6 @@ const resetIdentityLimiter = createRateLimiter({
   },
 });
 
-app.use("/courses", courseRoutes);
-app.use(studentRoutes);
-app.use("/instructor", instructorRoutes);
 app.use("/admin", adminRoutes);
 
 type AuthPayload = {

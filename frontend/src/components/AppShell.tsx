@@ -2,14 +2,6 @@ import type { PropsWithChildren } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/auth";
-import { apiFetch } from "../lib/api";
-import {
-  hasUnseenPendingRequests,
-  type PendingAccessRequestsResponse,
-  REQUESTS_SEEN_EVENT,
-} from "../lib/pendingRequests";
-import Badge from "./ui/Badge";
-import NotificationDot from "./ui/NotificationDot";
 import AppHeader from "./layout/AppHeader";
 import { useTheme } from "../context/theme";
 
@@ -19,14 +11,8 @@ export default function AppShell({ children }: PropsWithChildren) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [latestPendingAt, setLatestPendingAt] = useState<string | null>(null);
-  const [showRequestsBadge, setShowRequestsBadge] = useState(false);
-  const [pulseRequestsDot, setPulseRequestsDot] = useState(false);
-  const previousPendingCountRef = useRef(0);
 
   const isLoggedIn = Boolean(user);
-  const isInstructorRole = user?.role === "INSTRUCTOR";
 
   const navItems = useMemo(
     () => {
@@ -39,135 +25,34 @@ export default function AppShell({ children }: PropsWithChildren) {
 
       if (user?.role === "ADMIN") {
         return [
-          { to: "/admin", label: "Admin Dashboard" },
-          { to: "/admin/inbox", label: "Inbox" },
-          { to: "/admin/instructors", label: "Instructors" },
+          { to: "/admin/analytics", label: "Analytics" },
           { to: "/admin/users", label: "Users" },
-          { to: "/admin/courses", label: "Courses" },
-          { to: "/admin/enrollments", label: "Enrollments" },
-          { to: "/admin/audit-logs", label: "Audit Logs" },
           { to: "/profile", label: "Profile" },
         ];
       }
 
-      const items = [{ to: "/dashboard", label: "Dashboard" }, { to: "/courses", label: "Courses" }];
-
-      if (user?.role === "STUDENT") {
-        items.push({ to: "/my-courses", label: "My Courses" });
-      }
-
-      if (user?.role === "INSTRUCTOR") {
-        items.push({ to: "/instructor", label: "Instructor" });
-        items.push({ to: "/instructor/requests", label: "Requests" });
-      }
-
-      items.push({ to: "/profile", label: "Profile" });
-      return items;
+      return [{ to: "/profile", label: "Profile" }];
     },
     [isLoggedIn, user?.role]
   );
 
   const isActivePath = useCallback((path: string) => {
-    if (path === "/instructor/requests" && location.pathname.startsWith("/instructor/requests")) return true;
-    if (path === "/instructor") {
-      return (
-        location.pathname === "/instructor" ||
-        location.pathname === "/instructor/new" ||
-        location.pathname.startsWith("/instructor/courses/")
-      );
-    }
-    if (path === "/courses" && location.pathname.startsWith("/courses/")) return true;
     if (path === "/admin" && location.pathname.startsWith("/admin")) return true;
-    if (path === "/my-courses" && location.pathname.startsWith("/my-courses")) return true;
     if (path === "/profile" && location.pathname.startsWith("/profile")) return true;
     return location.pathname === path;
   }, [location.pathname]);
 
   const pageTitle = useMemo(() => {
-    if (location.pathname.startsWith("/instructor/requests")) return "Access Requests";
-    if (location.pathname.startsWith("/instructor/courses/")) return "Instructor Course Editor";
-    if (location.pathname.startsWith("/instructor/new")) return "Create Course";
-    if (location.pathname.startsWith("/instructor")) return "Instructor Workspace";
+    if (location.pathname.startsWith("/admin/analytics")) return "Analytics";
     if (location.pathname.startsWith("/admin/audit-logs")) return "Audit Logs";
-    if (location.pathname.startsWith("/admin/instructors/")) return "Instructor Detail";
-    if (location.pathname.startsWith("/admin/instructors")) return "Instructor Oversight";
-    if (location.pathname.startsWith("/admin/inbox")) return "Admin Inbox";
-    if (location.pathname.startsWith("/admin/enrollments")) return "Admin Enrollments";
-    if (location.pathname.startsWith("/admin/courses")) return "Admin Courses";
     if (location.pathname.startsWith("/admin/users")) return "Admin Users";
-    if (location.pathname.startsWith("/admin")) return "Admin Dashboard";
-    if (location.pathname.startsWith("/my-courses")) return "My Courses";
-    if (location.pathname.startsWith("/courses/") && location.pathname !== "/courses") return "Course Detail";
-    if (location.pathname.startsWith("/courses")) return "Courses";
-    if (location.pathname.startsWith("/lessons/")) return "Lesson";
+    if (location.pathname.startsWith("/admin")) return "Admin";
     if (location.pathname.startsWith("/profile")) return "Profile";
-    if (location.pathname.startsWith("/dashboard")) return "Dashboard";
     if (location.pathname.startsWith("/register")) return "Create Account";
     if (location.pathname.startsWith("/forgot-password")) return "Forgot Password";
     if (location.pathname.startsWith("/reset-password")) return "Reset Password";
     return "Workspace";
   }, [location.pathname]);
-
-  const refreshPendingRequests = useCallback(async () => {
-    if (!isInstructorRole) {
-      setPendingCount(0);
-      setLatestPendingAt(null);
-      setShowRequestsBadge(false);
-      return;
-    }
-    try {
-      const result = await apiFetch<PendingAccessRequestsResponse>("/instructor/requests?limit=1");
-      setPendingCount(result.totalPending);
-      setLatestPendingAt(result.latestPendingAt);
-      setShowRequestsBadge(result.totalPending > 0 && hasUnseenPendingRequests(result.latestPendingAt));
-    } catch {
-      setPendingCount(0);
-      setLatestPendingAt(null);
-      setShowRequestsBadge(false);
-    }
-  }, [isInstructorRole]);
-
-  useEffect(() => {
-    void refreshPendingRequests();
-  }, [refreshPendingRequests]);
-
-  useEffect(() => {
-    if (!isInstructorRole) return;
-    const interval = window.setInterval(() => {
-      void refreshPendingRequests();
-    }, 60000);
-    const onFocus = () => {
-      void refreshPendingRequests();
-    };
-    window.addEventListener("focus", onFocus);
-    return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("focus", onFocus);
-    };
-  }, [isInstructorRole, refreshPendingRequests]);
-
-  useEffect(() => {
-    const recomputeBadge = () => {
-      setShowRequestsBadge(pendingCount > 0 && hasUnseenPendingRequests(latestPendingAt));
-    };
-    window.addEventListener(REQUESTS_SEEN_EVENT, recomputeBadge);
-    window.addEventListener("storage", recomputeBadge);
-    return () => {
-      window.removeEventListener(REQUESTS_SEEN_EVENT, recomputeBadge);
-      window.removeEventListener("storage", recomputeBadge);
-    };
-  }, [pendingCount, latestPendingAt]);
-
-  useEffect(() => {
-    const previous = previousPendingCountRef.current;
-    if (pendingCount > previous) {
-      setPulseRequestsDot(true);
-      const timer = window.setTimeout(() => setPulseRequestsDot(false), 900);
-      previousPendingCountRef.current = pendingCount;
-      return () => window.clearTimeout(timer);
-    }
-    previousPendingCountRef.current = pendingCount;
-  }, [pendingCount]);
 
   const mobileSidebarRef = useRef<HTMLDivElement | null>(null);
 
@@ -206,9 +91,6 @@ export default function AppShell({ children }: PropsWithChildren) {
         theme={theme}
         pageTitle={pageTitle}
         navItems={desktopNavItems}
-        pendingCount={pendingCount}
-        showRequestsBadge={showRequestsBadge}
-        pulseRequestsDot={pulseRequestsDot}
         onNavigate={(path) => navigate(path)}
         onToggleMobileMenu={() => setIsSidebarOpen((prev) => !prev)}
         onToggleTheme={toggleTheme}
@@ -247,7 +129,6 @@ export default function AppShell({ children }: PropsWithChildren) {
           <div className="grid gap-2">
             {navItems.map((item) => {
               const isActive = isActivePath(item.to);
-              const showBadge = isInstructorRole && item.to === "/instructor/requests" && showRequestsBadge;
               return (
                 <Link
                   key={item.to}
@@ -261,12 +142,6 @@ export default function AppShell({ children }: PropsWithChildren) {
                 >
                   <span className="inline-flex items-center gap-2">
                     <span>{item.label}</span>
-                    {showBadge && (
-                      <>
-                        <NotificationDot visible pulseOnce={pulseRequestsDot} />
-                        <Badge variant="count" tone="success">{pendingCount > 99 ? "99+" : pendingCount}</Badge>
-                      </>
-                    )}
                   </span>
                 </Link>
               );

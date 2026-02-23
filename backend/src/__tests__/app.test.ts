@@ -78,7 +78,7 @@ describe("backend route behavior", () => {
     expect(logoutResponse.body.ok).toBe(true);
   });
 
-  it("blocks admin route when authenticated user is not admin", async () => {
+  it("blocks admin users route when authenticated user is not admin", async () => {
     prismaMock.user.findUnique.mockResolvedValue({
       id: "student-1",
       role: "STUDENT",
@@ -91,7 +91,7 @@ describe("backend route behavior", () => {
     );
 
     const response = await request(app)
-      .get("/admin/metrics")
+      .get("/admin/users")
       .set("Cookie", `auth_token=${token}`);
 
     expect(response.status).toBe(403);

@@ -1,5 +1,5 @@
 {
-  "name": "lms",
+  "name": "analytics-saas",
   "private": true,
   "workspaces": [
     "frontend",

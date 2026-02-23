@@ -1,32 +1,68 @@
-# LMS Monorepo
+# Analytics SaaS Baseline
 
-Role-based LMS built with React + Express + Prisma.
+Production-ready SaaS foundation built with React + Vite + TypeScript (frontend) and Express + TypeScript + Prisma + PostgreSQL (backend).
 
-## Quick Start
-1. `npm install`
+## Stack
+- Frontend: React 19, TypeScript, Vite, Tailwind CSS
+- Backend: Node.js, Express, TypeScript
+- Database: PostgreSQL + Prisma ORM
+
+## Included Foundation
+- Cookie auth + `/auth/*` endpoints
+- RBAC middleware
+- CSRF protection
+- Error contract (`{ error, message, fieldErrors? }`)
+- Rate limiting middleware
+- Admin shell and generic admin pages
+- Shared UI primitives and API client
+
+## Setup
+1. Install dependencies:
+   - `npm install`
 2. Copy env files:
-   - `.env.example -> .env`
-   - `backend/.env.example -> backend/.env`
-   - `frontend/.env.example -> frontend/.env`
-3. Optional DB via Docker: `docker compose up -d`
-4. Run backend: `npm -w backend run dev`
-5. Run frontend: `npm -w frontend run dev`
+   - `.env.example` to `.env`
+   - `backend/.env.example` to `backend/.env`
+   - `frontend/.env.example` to `frontend/.env`
+3. Start PostgreSQL (optional via Docker):
+   - `docker compose up -d`
+4. Apply Prisma migrations:
+   - `npm --workspace backend run prisma -- migrate deploy`
+5. (Optional) Seed an admin user:
+   - `npm --workspace backend run db:seed`
 
-## Quality Commands
-- `npm run typecheck`
-- `npm run lint`
-- `npm run test`
-- `npm run build`
-- `npm run check`
+## Run
+- Full app (backend + frontend): `npm run dev`
+- Backend only: `npm --workspace backend run dev`
+- Frontend only: `npm --workspace frontend run dev`
 
-## Documentation Index
-- `LMS_DOCS/01_OVERVIEW.md`
-- `LMS_DOCS/02_ARCHITECTURE.md`
-- `LMS_DOCS/03_FRONTEND.md`
-- `LMS_DOCS/04_BACKEND.md`
-- `LMS_DOCS/05_DATABASE.md`
-- `LMS_DOCS/06_AUTH_SECURITY.md`
-- `LMS_DOCS/07_USER_FLOWS.md`
-- `LMS_DOCS/08_API_OVERVIEW.md`
-- `LMS_DOCS/09_UI_SYSTEM.md`
-- `LMS_DOCS/10_DEPLOYMENT.md`
+## Scripts
+- Typecheck: `npm run typecheck`
+- Lint: `npm run lint`
+- Test: `npm run test`
+- Build: `npm run build`
+- Full check: `npm run check`
+
+## Default URLs
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:4000`
+
+## Core Routes
+- Frontend:
+  - `/login`
+  - `/register`
+  - `/forgot-password`
+  - `/reset-password`
+  - `/profile`
+  - `/admin/analytics`
+  - `/admin/users`
+  - `/admin/audit-logs`
+- Backend:
+  - `/auth/csrf`
+  - `/auth/register`
+  - `/auth/login`
+  - `/auth/logout`
+  - `/auth/forgot-password`
+  - `/auth/reset-password`
+  - `/me` (GET/PATCH)
+  - `/admin/users/*`
+  - `/admin/audit-logs`

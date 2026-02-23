@@ -10,120 +10,35 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 enum Role {
   ADMIN
   INSTRUCTOR
   STUDENT
 }
 
-enum EnrollmentStatus {
-  REQUESTED
-  ACTIVE
-  REVOKED
-}
-
-enum DeletionRequestStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String               @id @default(cuid())
+  email        String               @unique
   passwordHash String
-  role         Role     @default(STUDENT)
+  role         Role                 @default(STUDENT)
   suspendedAt  DateTime?
   fullName     String?
   phone        String?
   phoneCountry String?
   phoneE164    String?
   address      String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  enrollments  Enrollment[]
-  progress     LessonProgress[]
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
   resetTokens  PasswordResetToken[]
-  createdCourses Course[] @relation("CourseCreator")
-  deletionRequests DeletionRequest[] @relation("DeletionRequestRequestedBy")
-  deletionDecisions DeletionRequest[] @relation("DeletionRequestDecidedBy")
-}
-
-model Course {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  category    String?
-  level       String?
-  imageUrl    String?
-  isPublished Boolean  @default(false)
-  archivedAt  DateTime?
-  createdById String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  lessons     Lesson[]
-  enrollments Enrollment[]
-  deletionRequests DeletionRequest[]
-  createdBy   User?    @relation("CourseCreator", fields: [createdById], references: [id], onDelete: SetNull)
-
-  @@index([createdById])
-  @@index([isPublished])
-  @@index([archivedAt])
-  @@index([isPublished, archivedAt])
-}
-
-model Lesson {
-  id        String   @id @default(cuid())
-  courseId  String
-  title     String
-  videoUrl  String?
-  pdfUrl    String?
-  createdAt DateTime @default(now())
-
-  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  progress LessonProgress[]
-
-  @@index([courseId])
-}
-
-model Enrollment {
-  id        String           @id @default(cuid())
-  userId    String
-  courseId  String
-  status    EnrollmentStatus @default(REQUESTED)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, courseId])
-  @@index([courseId])
-  @@index([status])
-  @@index([courseId, status])
-}
-
-model LessonProgress {
-  id          String    @id @default(cuid())
-  userId      String
-  lessonId    String
-  completedAt DateTime?
-
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, lessonId])
-  @@index([lessonId])
 }
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
   tokenHash String
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -131,38 +46,17 @@ model PasswordResetToken {
   @@index([tokenHash])
 }
 
-model DeletionRequest {
-  id            String                @id @default(cuid())
-  courseId       String
-  requestedById  String
-  reason         String
-  status         DeletionRequestStatus @default(PENDING)
-  adminNote      String?
-  createdAt      DateTime              @default(now())
-  decidedAt      DateTime?
-  decidedById    String?
-
-  course      Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  requestedBy User   @relation("DeletionRequestRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
-  decidedBy   User?  @relation("DeletionRequestDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
-
-  @@index([courseId])
-  @@index([requestedById])
-  @@index([status])
-  @@index([courseId, status])
-}
-
 model AuditLog {
-  id        String   @id @default(cuid())
-  actorId   String?
-  actorRole String?
-  action    String
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorRole  String?
+  action     String
   entityType String
-  entityId  String?
-  metadata  Json?
-  ip        String?
-  userAgent String?
-  createdAt DateTime @default(now())
+  entityId   String?
+  metadata   Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
 
   @@index([createdAt])
   @@index([actorId])

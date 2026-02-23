@@ -3,8 +3,9 @@ import jwt from "jsonwebtoken";
 import { Role } from "@prisma/client";
 import prisma from "../lib/prisma.js";
 import { sendError } from "../utils/httpError.js";
+import { getCookieValue } from "../utils/cookies.js";
 
-const JWT_SECRET = process.env.JWT_SECRET ?? "";
+const JWT_SECRET = process.env.JWT_SECRET?.trim() ?? "";
 const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? "auth_token";
 const ALLOW_BEARER_AUTH = process.env.ALLOW_BEARER_AUTH === "true";
 
@@ -19,18 +20,6 @@ export type AuthRequest = Request & {
     role: Role;
   };
 };
-
-export function getCookieValue(cookieHeader: string | undefined, name: string): string | null {
-  if (!cookieHeader) return null;
-  const parts = cookieHeader.split(";");
-  for (const part of parts) {
-    const [rawKey, ...rawValue] = part.trim().split("=");
-    if (rawKey !== name) continue;
-    const value = rawValue.join("=");
-    return value ? decodeURIComponent(value) : null;
-  }
-  return null;
-}
 
 export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
   const cookieToken = getCookieValue(req.headers.cookie, AUTH_COOKIE_NAME);

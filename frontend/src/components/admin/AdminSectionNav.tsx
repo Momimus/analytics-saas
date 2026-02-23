@@ -1,18 +1,13 @@
 import { Link, useLocation } from "react-router-dom";
 
 const ADMIN_SECTIONS = [
-  { to: "/admin", label: "Dashboard" },
-  { to: "/admin/inbox", label: "Inbox" },
-  { to: "/admin/instructors", label: "Instructors" },
+  { to: "/admin/analytics", label: "Analytics" },
   { to: "/admin/users", label: "Users" },
-  { to: "/admin/courses", label: "Courses" },
-  { to: "/admin/enrollments", label: "Enrollments" },
-  { to: "/admin/audit-logs", label: "Audit Logs" },
 ] as const;
 
 function isActive(pathname: string, to: string) {
-  if (to === "/admin") {
-    return pathname === "/admin";
+  if (to === "/admin/analytics") {
+    return pathname === "/admin" || pathname === "/admin/analytics";
   }
   return pathname.startsWith(to);
 }

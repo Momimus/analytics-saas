@@ -1,16 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, UserCircle2 } from "lucide-react";
 import Badge from "../ui/Badge";
-import NotificationDot from "../ui/NotificationDot";
 
 type Role = "ADMIN" | "INSTRUCTOR" | "STUDENT";
 
 type UserMenuDropdownProps = {
   role: Role;
   userEmail: string | null;
-  pendingCount: number;
-  showRequestsBadge: boolean;
-  pulseRequestsDot: boolean;
   onNavigate: (path: string) => void;
   onLogout: () => Promise<void>;
   onToggleTheme: () => void;
@@ -21,22 +17,17 @@ type MenuItem = {
   label: string;
   path?: string;
   action?: () => void | Promise<void>;
-  showBadge?: boolean;
 };
 
 export default function UserMenuDropdown({
   role,
   userEmail,
-  pendingCount,
-  showRequestsBadge,
-  pulseRequestsDot,
   onNavigate,
   onLogout,
   onToggleTheme,
 }: UserMenuDropdownProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
-  const canSeeRequests = role === "INSTRUCTOR";
 
   useEffect(() => {
     if (!open) return;
@@ -62,20 +53,9 @@ export default function UserMenuDropdown({
   const items: MenuItem[] = [
     ...(role === "ADMIN"
       ? [
-          { key: "admin", label: "Admin Dashboard", path: "/admin" } satisfies MenuItem,
-          { key: "admin-inbox", label: "Inbox", path: "/admin/inbox" } satisfies MenuItem,
-          { key: "admin-instructors", label: "Instructors", path: "/admin/instructors" } satisfies MenuItem,
+          { key: "admin-analytics", label: "Analytics", path: "/admin/analytics" } satisfies MenuItem,
           { key: "admin-users", label: "Users", path: "/admin/users" } satisfies MenuItem,
-          { key: "admin-courses", label: "Courses", path: "/admin/courses" } satisfies MenuItem,
-          { key: "admin-enrollments", label: "Enrollments", path: "/admin/enrollments" } satisfies MenuItem,
-          { key: "admin-audit", label: "Audit Logs", path: "/admin/audit-logs" } satisfies MenuItem,
         ]
-      : [
-          { key: "dashboard", label: "Dashboard", path: "/dashboard" } satisfies MenuItem,
-          { key: "courses", label: "Courses", path: "/courses" } satisfies MenuItem,
-        ]),
-    ...(canSeeRequests
-      ? [{ key: "requests", label: "Requests", path: "/instructor/requests", showBadge: true } satisfies MenuItem]
       : []),
     { key: "profile", label: "Profile", path: "/profile" },
     { key: "theme", label: "Toggle Theme", action: onToggleTheme },
@@ -126,14 +106,6 @@ export default function UserMenuDropdown({
             className="flex w-full items-center justify-between rounded-[var(--radius-sm)] px-3 py-2 text-sm text-[var(--text-muted)] transition hover:bg-[color:var(--surface-strong)] hover:text-[var(--text)]"
           >
             <span>{item.label}</span>
-            {item.showBadge && showRequestsBadge ? (
-              <span className="inline-flex items-center gap-1.5">
-                <NotificationDot visible pulseOnce={pulseRequestsDot} />
-                <Badge variant="count" tone="success">
-                  {pendingCount > 99 ? "99+" : pendingCount}
-                </Badge>
-              </span>
-            ) : null}
           </button>
         ))}
       </div>

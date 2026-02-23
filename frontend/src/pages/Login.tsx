@@ -24,7 +24,7 @@ export default function LoginPage() {
       <div className="flex min-h-full w-full items-center justify-center">
       <GlassCard
         title="Welcome back"
-        subtitle="Use your LMS credentials to sign in."
+        subtitle="Use your account credentials to sign in."
         className="pointer-events-auto w-full max-w-md p-5 sm:p-6"
       >
         <form
@@ -40,7 +40,7 @@ export default function LoginPage() {
                 body: JSON.stringify({ email, password }),
               });
               await login();
-              navigate(result.user.role === "ADMIN" ? "/admin" : "/dashboard", { replace: true });
+              navigate(result.user.role === "ADMIN" ? "/admin/analytics" : "/profile", { replace: true });
             } catch (err) {
               setError(err instanceof Error ? err.message : "Login failed");
             } finally {

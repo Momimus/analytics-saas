@@ -8,7 +8,7 @@ type ThemeState = {
   setTheme: (theme: Theme) => void;
 };
 
-const STORAGE_KEY = "lms-theme";
+const STORAGE_KEY = "analytics-saas-theme";
 const ThemeContext = createContext<ThemeState | undefined>(undefined);
 
 function getInitialTheme(): Theme {
@@ -44,4 +44,3 @@ export function useTheme() {
   }
   return context;
 }
-

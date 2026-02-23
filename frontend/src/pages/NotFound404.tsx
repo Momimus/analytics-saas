@@ -12,14 +12,14 @@ export default function NotFound404Page() {
           Check the URL, go back to the previous screen, or continue from a known section.
         </p>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" onClick={() => navigate("/dashboard")}>
-            Go to Dashboard
+          <Button type="button" onClick={() => navigate("/profile")}>
+            Go to Profile
           </Button>
           <Button type="button" variant="ghost" onClick={() => navigate(-1)}>
             Back
           </Button>
-          <Button type="button" variant="ghost" onClick={() => navigate("/courses")}>
-            Courses
+          <Button type="button" variant="ghost" onClick={() => navigate("/admin/analytics")}>
+            Analytics
           </Button>
         </div>
       </div>

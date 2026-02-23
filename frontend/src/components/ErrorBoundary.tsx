@@ -36,14 +36,14 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
             <div className="card-animate w-full max-w-xl rounded-[var(--radius-xl)] border border-[color:var(--border)] bg-[color:var(--surface)] p-5 text-sm text-[var(--text-muted)] shadow-[var(--shadow-card)] md:p-7">
               <h1 className="text-lg font-semibold text-[var(--text)]">Something went wrong</h1>
               <p className="mt-2">
-                A rendering error occurred. You can reload this page, or return to the dashboard.
+                A rendering error occurred. You can reload this page, or return to your profile.
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button type="button" onClick={() => window.location.reload()}>
                   Reload page
                 </Button>
-                <Button type="button" variant="ghost" onClick={() => window.location.assign("/dashboard")}>
-                  Go to Dashboard
+                <Button type="button" variant="ghost" onClick={() => window.location.assign("/profile")}>
+                  Go to Profile
                 </Button>
               </div>
               {isDev && (

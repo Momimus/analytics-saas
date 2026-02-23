@@ -10,6 +10,8 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     env:
+      CI: "true"
+      NODE_ENV: test
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lms
       JWT_SECRET: ci-secret
       ALLOWED_ORIGINS: http://localhost:5173
