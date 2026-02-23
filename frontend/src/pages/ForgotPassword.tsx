@@ -50,8 +50,8 @@ export default function ForgotPasswordPage() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
           />
-          {error && <p className="text-sm text-rose-300 break-words">{error}</p>}
-          {success && <p className="text-sm text-emerald-300 break-words">{success}</p>}
+          {error && <p className="break-words text-sm text-[var(--danger)]">{error}</p>}
+          {success && <p className="break-words text-sm text-[var(--success)]">{success}</p>}
           {resetLink && (
             <a className="text-sm text-[var(--accent)] hover:underline break-words" href={resetLink}>
               {resetLink}

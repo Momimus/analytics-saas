@@ -54,7 +54,7 @@ export default function ResetPasswordPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
             />
-            {passwordTooShort && <span className="text-xs text-rose-300">Minimum 6 characters.</span>}
+            {passwordTooShort && <span className="text-xs text-[var(--danger)]">Minimum 6 characters.</span>}
           </label>
           <label className="grid gap-2 text-sm font-medium text-[var(--text-muted)]">
             <span className="text-[var(--text)]">Confirm password</span>
@@ -67,9 +67,9 @@ export default function ResetPasswordPage() {
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
             />
-            {passwordsMismatch && <span className="text-xs text-rose-300">Passwords do not match.</span>}
+            {passwordsMismatch && <span className="text-xs text-[var(--danger)]">Passwords do not match.</span>}
           </label>
-          {error && <p className="text-sm text-rose-300 break-words">{error}</p>}
+          {error && <p className="break-words text-sm text-[var(--danger)]">{error}</p>}
           <div className="pt-1">
             <Button type="submit" fullWidth disabled={!isValid || loading}>
               {loading ? "Saving..." : "Reset password"}

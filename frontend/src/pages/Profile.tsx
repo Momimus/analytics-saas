@@ -89,7 +89,7 @@ export default function ProfilePage() {
             value={fullName}
             onChange={(event) => setFullName(event.target.value)}
           />
-          {fieldErrors.fullName && <span className={formHelpTextClass + " text-rose-300"}>{fieldErrors.fullName}</span>}
+          {fieldErrors.fullName && <span className={formHelpTextClass + " text-[var(--danger)]"}>{fieldErrors.fullName}</span>}
         </label>
         <label className={formLabelClass}>
           <span className={formLabelTextClass}>Phone</span>
@@ -110,12 +110,12 @@ export default function ProfilePage() {
               onChange={(event) => setPhone(event.target.value.replace(/[^\d]/g, ""))}
             />
           </div>
-          {fieldErrors.phone && <span className={formHelpTextClass + " text-rose-300"}>{fieldErrors.phone}</span>}
+          {fieldErrors.phone && <span className={formHelpTextClass + " text-[var(--danger)]"}>{fieldErrors.phone}</span>}
           {fieldErrors.phoneCountry && (
-            <span className={formHelpTextClass + " text-rose-300"}>{fieldErrors.phoneCountry}</span>
+            <span className={formHelpTextClass + " text-[var(--danger)]"}>{fieldErrors.phoneCountry}</span>
           )}
           {phoneMissingCountry && (
-            <span className={formHelpTextClass + " text-rose-300"}>Select a country for the phone number.</span>
+            <span className={formHelpTextClass + " text-[var(--danger)]"}>Select a country for the phone number.</span>
           )}
           {phoneE164 && (
             <span className={formHelpTextClass}>Saved as {phoneE164}</span>
@@ -130,10 +130,10 @@ export default function ProfilePage() {
             value={address}
             onChange={(event) => setAddress(event.target.value)}
           />
-          {fieldErrors.address && <span className={formHelpTextClass + " text-rose-300"}>{fieldErrors.address}</span>}
+          {fieldErrors.address && <span className={formHelpTextClass + " text-[var(--danger)]"}>{fieldErrors.address}</span>}
         </label>
-        {error && <p className="text-sm text-rose-300">{error}</p>}
-        {success && <p className="text-sm text-emerald-300">{success}</p>}
+        {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
+        {success && <p className="text-sm text-[var(--success)]">{success}</p>}
         <div className="pt-1">
           <Button type="submit" fullWidth disabled={loading}>
             {loading ? "Saving..." : "Save profile"}

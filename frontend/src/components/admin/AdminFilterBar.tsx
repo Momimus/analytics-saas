@@ -23,15 +23,15 @@ export default function AdminFilterBar({
   const hasFilters = activeFilterCount > 0;
 
   return (
-    <div className="mb-2.5 rounded-[var(--radius-lg)] border border-[color:var(--border)] bg-[color:var(--surface)]/50 p-2.5 shadow-[var(--shadow-card)]">
-      <div className="mb-2.5 flex flex-wrap items-start justify-between gap-2.5">
+    <div className="mb-3 rounded-[var(--ui-radius-xl)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] p-3 shadow-[var(--ui-shadow-sm)] sm:p-4">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2.5">
         <div className="grid gap-1">
-          {title ? <p className="text-sm font-semibold text-[var(--text)]">{title}</p> : null}
-          {helperText ? <p className="text-xs text-[var(--text-muted)]">{helperText}</p> : null}
+          {title ? <p className="text-sm font-semibold text-[var(--ui-text-primary)]">{title}</p> : null}
+          {helperText ? <p className="text-xs text-[var(--ui-text-muted)]">{helperText}</p> : null}
         </div>
         <div className="flex items-center gap-1.5">
           {hasFilters ? (
-            <span className="inline-flex items-center rounded-full border border-[color:var(--border)] bg-[color:var(--surface-strong)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
+            <span className="inline-flex items-center rounded-full border border-[color:var(--ui-border-soft)] bg-[color:var(--surface-alt)] px-2 py-0.5 text-xs text-[var(--ui-text-muted)]">
               {activeFilterCount} active
             </span>
           ) : null}
@@ -43,9 +43,9 @@ export default function AdminFilterBar({
           ) : null}
         </div>
       </div>
-      <div className="grid gap-1.5 md:grid-cols-4">{children}</div>
+      <div className="grid gap-2 md:grid-cols-4">{children}</div>
       {onReset && hasFilters ? (
-        <div className="mt-1.5 flex justify-end">
+        <div className="mt-2 flex justify-end">
           <Button type="button" variant="ghost" className="h-8 px-2.5 py-0 text-xs" onClick={onReset}>
             Clear all
           </Button>

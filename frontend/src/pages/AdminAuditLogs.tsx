@@ -3,7 +3,6 @@ import Button from "../components/Button";
 import GlassCard from "../components/ui/GlassCard";
 import type { AuditLog } from "../lib/admin";
 import { listAdminAuditLogs } from "../lib/admin";
-import AdminSectionNav from "../components/admin/AdminSectionNav";
 import { AdminPagination, AdminTable } from "../components/admin/AdminTable";
 import AdminFilterBar from "../components/admin/AdminFilterBar";
 import { ApiError } from "../lib/api";
@@ -124,8 +123,6 @@ export default function AdminAuditLogsPage() {
 
   return (
     <div className="grid gap-5">
-      <AdminSectionNav />
-
       <GlassCard title="Audit Logs" subtitle="Filter and inspect admin activity.">
         <AdminFilterBar
           title="Audit Filters"

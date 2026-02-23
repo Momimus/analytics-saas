@@ -1,6 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo } from "react";
 
-export type Theme = "dark" | "light";
+export type Theme = "light";
 
 type ThemeState = {
   theme: Theme;
@@ -8,29 +8,21 @@ type ThemeState = {
   setTheme: (theme: Theme) => void;
 };
 
-const STORAGE_KEY = "analytics-saas-theme";
 const ThemeContext = createContext<ThemeState | undefined>(undefined);
 
-function getInitialTheme(): Theme {
-  if (typeof window === "undefined") return "dark";
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  return stored === "light" || stored === "dark" ? stored : "dark";
-}
-
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(getInitialTheme);
+  const theme: Theme = "light";
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    window.localStorage.setItem(STORAGE_KEY, theme);
   }, [theme]);
 
   const setTheme = useCallback((next: Theme) => {
-    setThemeState(next);
+    void next;
+    document.documentElement.dataset.theme = "light";
   }, []);
-
   const toggleTheme = useCallback(() => {
-    setThemeState((prev) => (prev === "dark" ? "light" : "dark"));
+    document.documentElement.dataset.theme = "light";
   }, []);
 
   const value = useMemo(() => ({ theme, toggleTheme, setTheme }), [theme, toggleTheme, setTheme]);

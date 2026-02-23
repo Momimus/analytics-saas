@@ -1,13 +1,17 @@
-import AdminSectionNav from "../components/admin/AdminSectionNav";
 import GlassCard from "../components/ui/GlassCard";
+import { AdminPage, AdminPageHeader } from "../components/admin/AdminPageLayout";
 
 export default function AdminOrdersPage() {
   return (
-    <div className="grid gap-5">
-      <AdminSectionNav />
-      <GlassCard title="Orders" subtitle="Order pipeline and transaction analytics will appear here.">
+    <AdminPage>
+      <GlassCard>
+        <AdminPageHeader
+          title="Orders"
+          subtitle="Order pipeline and transaction analytics will appear here."
+          compact
+        />
         <p className="text-sm text-[var(--text-muted)]">This is a placeholder page for order performance insights.</p>
       </GlassCard>
-    </div>
+    </AdminPage>
   );
 }

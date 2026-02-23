@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 type CategoryPoint = {
   label: string;
   value: number;
@@ -7,18 +9,12 @@ type OrdersCategoryChartProps = {
   data: CategoryPoint[];
 };
 
-const BAR_COLORS = [
-  "var(--accent)",
-  "color-mix(in srgb, var(--accent) 74%, #ffffff 26%)",
-  "color-mix(in srgb, var(--accent) 56%, #ffffff 44%)",
-  "color-mix(in srgb, var(--accent) 42%, #ffffff 58%)",
-];
-
 export default function OrdersCategoryChart({ data }: OrdersCategoryChartProps) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const width = 640;
   const height = 260;
-  const paddingX = 42;
-  const paddingTop = 16;
+  const paddingX = 44;
+  const paddingTop = 18;
   const paddingBottom = 40;
   const chartHeight = height - paddingTop - paddingBottom;
   const chartWidth = width - paddingX * 2;
@@ -26,40 +22,67 @@ export default function OrdersCategoryChart({ data }: OrdersCategoryChartProps) 
   const barSlot = chartWidth / Math.max(data.length, 1);
   const barWidth = Math.max(18, Math.min(44, barSlot * 0.55));
 
+  const hoveredPoint = hoveredIndex !== null ? data[hoveredIndex] : null;
+  const tooltipX = hoveredIndex !== null ? paddingX + hoveredIndex * barSlot + barWidth / 2 + (barSlot - barWidth) / 2 : 0;
+  const tooltipY = hoveredIndex !== null && hoveredPoint
+    ? height - paddingBottom - ((hoveredPoint.value / maxValue) * chartHeight)
+    : 0;
+
   return (
-    <div className="w-full overflow-hidden rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)]/20 p-2">
+    <div className="relative w-full overflow-hidden rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] p-3">
       <svg viewBox={`0 0 ${width} ${height}`} className="h-64 w-full">
-        <line x1={paddingX} y1={paddingTop} x2={paddingX} y2={height - paddingBottom} stroke="var(--border)" />
+        <line x1={paddingX} y1={paddingTop} x2={paddingX} y2={height - paddingBottom} stroke="var(--ui-border-soft)" />
         <line
           x1={paddingX}
           y1={height - paddingBottom}
           x2={width - paddingX}
           y2={height - paddingBottom}
-          stroke="var(--border)"
+          stroke="var(--ui-border-soft)"
         />
 
-        {Array.from({ length: 4 }).map((_, idx) => {
-          const y = paddingTop + (idx / 3) * chartHeight;
-          return <line key={idx} x1={paddingX} y1={y} x2={width - paddingX} y2={y} stroke="var(--border)" opacity="0.35" />;
+        {Array.from({ length: 5 }).map((_, idx) => {
+          const y = paddingTop + (idx / 4) * chartHeight;
+          return <line key={idx} x1={paddingX} y1={y} x2={width - paddingX} y2={y} stroke="var(--ui-border-soft)" opacity="0.75" />;
         })}
 
         {data.map((point, index) => {
           const x = paddingX + index * barSlot + (barSlot - barWidth) / 2;
           const barHeight = (point.value / maxValue) * chartHeight;
           const y = height - paddingBottom - barHeight;
+          const isHovered = hoveredIndex === index;
           return (
             <g key={point.label}>
-              <rect x={x} y={y} width={barWidth} height={barHeight} rx="6" fill={BAR_COLORS[index % BAR_COLORS.length]} />
-              <text x={x + barWidth / 2} y={height - 12} textAnchor="middle" fill="var(--text-muted)" fontSize="11">
+              <rect
+                x={x}
+                y={y}
+                width={barWidth}
+                height={barHeight}
+                rx="6"
+                fill="var(--accent)"
+                fillOpacity={isHovered ? 0.95 : 0.84 - index * 0.1}
+                onMouseEnter={() => setHoveredIndex(index)}
+                onMouseLeave={() => setHoveredIndex(null)}
+              />
+              <text x={x + barWidth / 2} y={height - 12} textAnchor="middle" fill="var(--ui-text-muted)" fontSize="11">
                 {point.label}
               </text>
-              <text x={x + barWidth / 2} y={Math.max(12, y - 6)} textAnchor="middle" fill="var(--text)" fontSize="11">
+              <text x={x + barWidth / 2} y={Math.max(12, y - 6)} textAnchor="middle" fill="var(--ui-text-primary)" fontSize="11">
                 {point.value}
               </text>
             </g>
           );
         })}
       </svg>
+
+      {hoveredPoint ? (
+        <div
+          className="pointer-events-none absolute z-10 -translate-x-1/2 rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-2.5 py-1.5 text-xs shadow-[var(--ui-shadow-panel)]"
+          style={{ left: `${(tooltipX / width) * 100}%`, top: `calc(${(tooltipY / height) * 100}% - 14px)` }}
+        >
+          <p className="font-medium text-[var(--ui-text-primary)]">{hoveredPoint.label}</p>
+          <p className="text-[var(--ui-text-muted)]">{hoveredPoint.value} orders</p>
+        </div>
+      ) : null}
     </div>
   );
 }

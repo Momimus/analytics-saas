@@ -3,6 +3,11 @@ import Button from "../Button";
 import InlineErrorState from "../common/InlineErrorState";
 import Select from "../ui/Select";
 
+export const adminTableHeadRowClass = "text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--ui-text-muted)]";
+export const adminTableHeadCellClass = "px-3 py-2.5 text-left";
+export const adminTableRowClass = "border-t border-[color:var(--ui-border-soft)] text-[var(--ui-text-primary)]";
+export const adminTableCellClass = "px-3 py-2.5 align-middle text-sm";
+
 export type AppliedFilter = {
   key: string;
   label: string;
@@ -71,7 +76,7 @@ export function AdminTable({
   skeletonRows = 6,
   emptyAction,
   stickyHeader = false,
-  density = "compact",
+  density = "comfortable",
   zebraRows = false,
   responsiveMode = "table",
   mobileStack,
@@ -149,17 +154,18 @@ export function AdminTable({
   const hasAppliedFilters = Boolean(appliedFilters && appliedFilters.length > 0);
   const tableClassName = [
     "min-w-full text-left text-sm",
-    "[&_th]:px-3 [&_th]:py-2 [&_td]:px-3 [&_td]:py-2",
+    "[&_th]:px-3 [&_th]:py-2.5 [&_td]:px-3 [&_td]:py-2.5",
     stickyHeader
-      ? "[&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-[1] [&_thead_th]:bg-[color:var(--surface)]/95 [&_thead_th]:backdrop-blur"
+      ? "[&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-[1] [&_thead_th]:bg-[color:var(--surface-alt)]/95 [&_thead_th]:backdrop-blur"
       : "",
     density === "compact"
-      ? "[&_th]:!px-2 [&_th]:!py-1.5 [&_td]:!px-2 [&_td]:!py-1.5"
+      ? "[&_th]:!px-2 [&_th]:!py-2 [&_td]:!px-2 [&_td]:!py-2"
       : "",
+    "[&_thead_th]:text-[11px] [&_thead_th]:font-semibold [&_thead_th]:uppercase [&_thead_th]:tracking-[0.1em] [&_thead_th]:text-[var(--ui-text-muted)]",
     "[&_tbody_tr]:transition-colors [&_tbody_tr]:duration-150",
-    "[&_tbody_tr:hover]:bg-[color:var(--surface)]/35",
+    "[&_tbody_tr:hover]:bg-[color:var(--surface-alt)]",
     "[&_tbody_tr[data-row-selected='true']]:bg-[color:var(--ui-accent-soft)]/70",
-    zebraRows ? "[&_tbody_tr:nth-child(even)]:bg-[color:var(--surface)]/20" : "",
+    zebraRows ? "[&_tbody_tr:nth-child(even)]:bg-[color:var(--surface-alt)]/55" : "",
     "[&_th[data-align='right']]:text-right [&_td[data-align='right']]:text-right [&_td[data-align='right']]:tabular-nums",
     "[&_th[data-align='center']]:text-center [&_td[data-align='center']]:text-center",
   ]
@@ -169,8 +175,8 @@ export function AdminTable({
   const tableSurface = (
     <div
       ref={tableWrapRef}
-      className={`overflow-x-auto rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)]/20 ${
-        stickyHeader && showStickyShadow ? "shadow-[inset_0_-1px_0_rgba(255,255,255,0.06),inset_0_10px_14px_-12px_rgba(0,0,0,0.6)]" : ""
+      className={`overflow-x-auto rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] ${
+        stickyHeader && showStickyShadow ? "shadow-[inset_0_-1px_0_rgba(226,232,240,0.8),inset_0_10px_14px_-12px_rgba(15,23,42,0.12)]" : ""
       }`}
     >
       <table className={tableClassName}>
@@ -185,7 +191,7 @@ export function AdminTable({
   );
 
   return (
-    <div className="grid gap-2.5">
+    <div className="grid gap-3">
       {hasAppliedFilters ? (
         <div className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)]/35 p-1.5">
           <div className="flex flex-wrap items-center gap-1.5">

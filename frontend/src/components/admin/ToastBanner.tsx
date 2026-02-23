@@ -6,10 +6,10 @@ type ToastBannerProps = {
 
 export default function ToastBanner({ message, tone = "success", onClose }: ToastBannerProps) {
   const accentClass = tone === "success"
-    ? "text-emerald-200 border-emerald-400/35 bg-emerald-500/10"
+    ? "text-[color:var(--success)] border-[color:color-mix(in_srgb,var(--success)_35%,transparent)] bg-[color:color-mix(in_srgb,var(--success)_10%,white_90%)]"
     : tone === "error"
-      ? "text-rose-200 border-rose-400/35 bg-rose-500/10"
-      : "text-sky-200 border-sky-400/35 bg-sky-500/10";
+      ? "text-[color:var(--danger)] border-[color:color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[color:color-mix(in_srgb,var(--danger)_10%,white_90%)]"
+      : "text-[color:var(--accent)] border-[color:color-mix(in_srgb,var(--accent)_35%,transparent)] bg-[color:color-mix(in_srgb,var(--accent)_10%,white_90%)]";
 
   return (
     <div className="ui-fade-scale fixed bottom-4 right-4 z-50 max-w-sm rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)]/95 p-3 shadow-[var(--shadow-card)] backdrop-blur-md transition-opacity duration-200">

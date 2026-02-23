@@ -1,12 +1,17 @@
-import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
-import { AdminTable } from "../components/admin/AdminTable";
-import AdminSectionNav from "../components/admin/AdminSectionNav";
+import { useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
+import {
+  AdminTable,
+  adminTableCellClass,
+  adminTableHeadCellClass,
+  adminTableHeadRowClass,
+  adminTableRowClass,
+} from "../components/admin/AdminTable";
+import { AdminPage, AdminPageHeader } from "../components/admin/AdminPageLayout";
 import OrdersCategoryChart from "../components/analytics/OrdersCategoryChart";
 import RevenueTrendChart from "../components/analytics/RevenueTrendChart";
 import Badge from "../components/ui/Badge";
 import StatCard from "../components/ui/StatCard";
-import Select from "../components/ui/Select";
 import GlassCard from "../components/ui/GlassCard";
 
 const REVENUE_SERIES = [
@@ -34,9 +39,16 @@ const ACTIVITY_ROWS = [
   { time: "07:58", type: "Event", actor: "System", detail: "Usage threshold reached", status: "Alert" },
 ];
 
+function statusTone(status: string): "success" | "warning" | "neutral" {
+  if (status === "Completed") return "success";
+  if (status === "Alert" || status === "In Review") return "warning";
+  return "neutral";
+}
+
 export default function AdminAnalyticsPage() {
-  const [dateRange, setDateRange] = useState("7d");
-  const [search, setSearch] = useState("");
+  const [searchParams] = useSearchParams();
+  const search = searchParams.get("q") ?? "";
+  const dateRange = searchParams.get("range") ?? "7d";
 
   const filteredRows = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -47,49 +59,24 @@ export default function AdminAnalyticsPage() {
   }, [search]);
 
   return (
-    <div className="grid gap-5">
-      <AdminSectionNav />
-
-      <GlassCard>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-[var(--text)]">Analytics</h1>
-            <p className="text-sm text-[var(--text-muted)]">Admin dashboard overview with placeholder performance data.</p>
-          </div>
-          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-            <div className="w-full min-w-[12rem] sm:w-40">
-              <Select
-                ariaLabel="Analytics date range"
-                value={dateRange}
-                onChange={setDateRange}
-                items={[
-                  { label: "Last 7 days", value: "7d" },
-                  { label: "Last 30 days", value: "30d" },
-                  { label: "Last 90 days", value: "90d" },
-                ]}
-              />
-            </div>
-            <label className="relative w-full sm:w-56">
-              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-[var(--text-muted)]" />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search activity"
-                className="h-9 w-full rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)] px-9 text-sm text-[var(--text)]"
-              />
-            </label>
-          </div>
-        </div>
+    <AdminPage>
+      <GlassCard className="border-[color:var(--ui-border-strong)]">
+        <AdminPageHeader
+          title="Analytics Overview"
+          subtitle="Admin dashboard overview with placeholder performance data."
+          aside={<Badge tone="neutral">{dateRange === "30d" ? "Last 30 days" : dateRange === "90d" ? "Last 90 days" : "Last 7 days"}</Badge>}
+          compact
+        />
       </GlassCard>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Revenue" value="$128,540" hint="+8.2% vs prior period" />
         <StatCard label="Orders" value="430" hint="+5.1% vs prior period" />
         <StatCard label="Conversion" value="3.9%" hint="+0.4 pts vs prior period" />
         <StatCard label="Active Users" value="2,184" hint="+9.7% vs prior period" />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid gap-5 xl:grid-cols-2">
         <GlassCard title="Revenue Trend" subtitle="Daily revenue performance">
           <RevenueTrendChart data={REVENUE_SERIES} />
         </GlassCard>
@@ -107,33 +94,32 @@ export default function AdminAnalyticsPage() {
           colCount={5}
           stickyHeader
           zebraRows
+          density="comfortable"
         >
           <thead>
-            <tr className="text-xs uppercase tracking-[0.12em] text-[var(--text-muted)]">
-              <th className="px-3 py-2">Time</th>
-              <th className="px-3 py-2">Type</th>
-              <th className="px-3 py-2">Actor</th>
-              <th className="px-3 py-2">Detail</th>
-              <th className="px-3 py-2">Status</th>
+            <tr className={adminTableHeadRowClass}>
+              <th className={adminTableHeadCellClass}>Time</th>
+              <th className={adminTableHeadCellClass}>Type</th>
+              <th className={adminTableHeadCellClass}>Actor</th>
+              <th className={adminTableHeadCellClass}>Detail</th>
+              <th className={adminTableHeadCellClass}>Status</th>
             </tr>
           </thead>
           <tbody>
             {filteredRows.map((row) => (
-              <tr key={`${row.time}-${row.actor}-${row.detail}`} className="border-t border-[color:var(--border)] text-[var(--text)]">
-                <td className="px-3 py-2 text-sm text-[var(--text-muted)]">{row.time}</td>
-                <td className="px-3 py-2">{row.type}</td>
-                <td className="px-3 py-2">{row.actor}</td>
-                <td className="px-3 py-2">{row.detail}</td>
-                <td className="px-3 py-2">
-                  <Badge tone={row.status === "Completed" ? "success" : row.status === "Alert" ? "warning" : "neutral"}>
-                    {row.status}
-                  </Badge>
+              <tr key={`${row.time}-${row.actor}-${row.detail}`} className={adminTableRowClass}>
+                <td className={`${adminTableCellClass} w-[88px] whitespace-nowrap font-mono text-xs tabular-nums text-[var(--ui-text-muted)]`}>{row.time}</td>
+                <td className={`${adminTableCellClass} w-[108px] font-medium`}>{row.type}</td>
+                <td className={`${adminTableCellClass} w-[160px] truncate font-medium`}>{row.actor}</td>
+                <td className={`${adminTableCellClass} max-w-[420px] truncate text-[var(--ui-text-secondary)]`}>{row.detail}</td>
+                <td className={adminTableCellClass}>
+                  <Badge tone={statusTone(row.status)}>{row.status}</Badge>
                 </td>
               </tr>
             ))}
           </tbody>
         </AdminTable>
       </GlassCard>
-    </div>
+    </AdminPage>
   );
 }

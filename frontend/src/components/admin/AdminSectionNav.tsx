@@ -21,17 +21,17 @@ export default function AdminSectionNav() {
 
   return (
     <nav className="hidden overflow-x-auto sm:block">
-      <div className="inline-flex min-w-full gap-2 rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)] p-1">
+      <div className="inline-flex min-w-full gap-2 rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)]/90 p-1">
         {ADMIN_SECTIONS.map((item) => {
           const active = isActive(location.pathname, item.to);
           return (
             <Link
               key={item.to}
               to={item.to}
-              className={`whitespace-nowrap rounded-[var(--radius-sm)] px-3 py-2 text-sm font-medium transition ${
+              className={`whitespace-nowrap rounded-[var(--radius-sm)] border px-3 py-2 text-sm font-medium transition ${
                 active
-                  ? "bg-[var(--accent)] text-[var(--accent-contrast)]"
-                  : "text-[var(--text-muted)] hover:bg-[color:var(--surface-strong)] hover:text-[var(--text)]"
+                  ? "border-[color:color-mix(in_srgb,var(--accent)_45%,transparent)] bg-[color:var(--ui-accent-soft)] text-[var(--accent)]"
+                  : "border-transparent text-[var(--text-muted)] hover:border-[color:var(--border)] hover:bg-[color:var(--surface-strong)] hover:text-[var(--text)]"
               }`}
             >
               {item.label}

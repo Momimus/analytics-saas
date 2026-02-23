@@ -31,11 +31,11 @@ export default function InlineErrorState({ title, message, onRetry, details, sta
   const resolvedMessage = friendlyMessage(message, statusCode);
 
   return (
-    <div className="rounded-[var(--radius-md)] border border-rose-400/40 bg-rose-500/10 p-4">
-      <p className="text-sm font-semibold text-rose-200">{resolvedTitle}</p>
-      <p className="mt-1 text-sm text-rose-100">{resolvedMessage}</p>
-      {statusCode ? <p className="mt-1 text-xs text-rose-200/80">Status: {statusCode}</p> : null}
-      {details ? <p className="mt-1 text-xs text-rose-200/80">{details}</p> : null}
+    <div className="rounded-[var(--radius-md)] border border-[color:color-mix(in_srgb,var(--danger)_35%,transparent)] bg-[color:color-mix(in_srgb,var(--danger)_8%,white_92%)] p-4">
+      <p className="text-sm font-semibold text-[var(--danger)]">{resolvedTitle}</p>
+      <p className="mt-1 text-sm text-[color:color-mix(in_srgb,var(--danger)_82%,var(--text)_18%)]">{resolvedMessage}</p>
+      {statusCode ? <p className="mt-1 text-xs text-[color:color-mix(in_srgb,var(--danger)_75%,var(--text-muted)_25%)]">Status: {statusCode}</p> : null}
+      {details ? <p className="mt-1 text-xs text-[color:color-mix(in_srgb,var(--danger)_75%,var(--text-muted)_25%)]">{details}</p> : null}
       {onRetry ? (
         <div className="mt-3">
           <Button type="button" variant="ghost" className="h-10 px-3 py-0" onClick={onRetry}>

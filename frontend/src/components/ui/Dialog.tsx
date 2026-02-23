@@ -61,7 +61,7 @@ export default function Dialog({ open, onClose, children, className }: DialogPro
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/55 px-4"
+      className="fixed inset-0 z-50 grid place-items-center bg-slate-900/30 px-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}

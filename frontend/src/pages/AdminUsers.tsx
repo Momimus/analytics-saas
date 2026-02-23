@@ -4,10 +4,17 @@ import GlassCard from "../components/ui/GlassCard";
 import type { AdminUser } from "../lib/admin";
 import { listAdminUsers } from "../lib/admin";
 import { ApiError } from "../lib/api";
-import AdminSectionNav from "../components/admin/AdminSectionNav";
-import { AdminPagination, AdminTable } from "../components/admin/AdminTable";
+import {
+  AdminPagination,
+  AdminTable,
+  adminTableCellClass,
+  adminTableHeadCellClass,
+  adminTableHeadRowClass,
+  adminTableRowClass,
+} from "../components/admin/AdminTable";
 import AdminFilterBar from "../components/admin/AdminFilterBar";
 import Select from "../components/ui/Select";
+import { AdminPage, AdminPageHeader } from "../components/admin/AdminPageLayout";
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -67,10 +74,13 @@ export default function AdminUsersPage() {
   }, [search, statusFilter, pageSize]);
 
   return (
-    <div className="grid gap-5">
-      <AdminSectionNav />
-
-      <GlassCard title="Users" subtitle="Admin-only account list for this baseline.">
+    <AdminPage>
+      <GlassCard>
+        <AdminPageHeader
+          title="Users"
+          subtitle="Admin-only account list for this baseline."
+          compact
+        />
         <AdminFilterBar
           title="User Filters"
           helper="Search and filter current admin accounts."
@@ -90,7 +100,7 @@ export default function AdminUsersPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search email or name"
-            className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[var(--text)]"
+            className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-3 py-2 text-sm text-[var(--ui-text-primary)] outline-none transition focus:border-[var(--ui-accent)] focus:ring-2 focus:ring-[var(--ui-accent-soft)]"
           />
           <Select
             value={statusFilter}
@@ -128,13 +138,13 @@ export default function AdminUsersPage() {
               {users.map((user) => (
                 <article
                   key={user.id}
-                  className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface)]/40 p-2.5"
+                  className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] p-3"
                 >
-                  <p className="truncate text-sm font-medium text-[var(--text)]">{user.fullName?.trim() || user.email}</p>
-                  <p className="truncate text-xs text-[var(--text-muted)]">{user.email}</p>
-                  <div className="mt-2 grid grid-cols-2 gap-1.5 text-xs text-[var(--text-muted)]">
-                    <p>Role: <span className="text-[var(--text)]">{user.role}</span></p>
-                    <p>Status: <span className="text-[var(--text)]">{user.suspendedAt ? "Suspended" : "Active"}</span></p>
+                  <p className="truncate text-sm font-medium text-[var(--ui-text-primary)]">{user.fullName?.trim() || user.email}</p>
+                  <p className="truncate text-xs text-[var(--ui-text-muted)]">{user.email}</p>
+                  <div className="mt-2 grid grid-cols-2 gap-1.5 text-xs text-[var(--ui-text-muted)]">
+                    <p>Role: <span className="text-[var(--ui-text-primary)]">{user.role}</span></p>
+                    <p>Status: <span className="text-[var(--ui-text-primary)]">{user.suspendedAt ? "Suspended" : "Active"}</span></p>
                   </div>
                 </article>
               ))}
@@ -147,23 +157,25 @@ export default function AdminUsersPage() {
           }
         >
           <thead>
-            <tr className="text-xs uppercase tracking-[0.12em] text-[var(--text-muted)]">
-              <th className="px-3 py-2">User</th>
-              <th className="px-3 py-2">Role</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2">Created</th>
+            <tr className={adminTableHeadRowClass}>
+              <th className={adminTableHeadCellClass}>User</th>
+              <th className={adminTableHeadCellClass}>Role</th>
+              <th className={adminTableHeadCellClass}>Status</th>
+              <th className={adminTableHeadCellClass}>Created</th>
             </tr>
           </thead>
           <tbody>
             {users.map((user) => (
-              <tr key={user.id} className="border-t border-[color:var(--border)] text-[var(--text)]">
-                <td className="px-3 py-2">
+              <tr key={user.id} className={adminTableRowClass}>
+                <td className={adminTableCellClass}>
                   <p className="truncate font-medium">{user.fullName?.trim() || user.email}</p>
-                  <p className="truncate text-xs text-[var(--text-muted)]">{user.email}</p>
+                  <p className="truncate text-xs text-[var(--ui-text-muted)]">{user.email}</p>
                 </td>
-                <td className="px-3 py-2">{user.role}</td>
-                <td className="px-3 py-2">{user.suspendedAt ? "Suspended" : "Active"}</td>
-                <td className="px-3 py-2">{new Date(user.createdAt).toLocaleString()}</td>
+                <td className={`${adminTableCellClass} w-[110px]`}>{user.role}</td>
+                <td className={`${adminTableCellClass} w-[110px]`}>{user.suspendedAt ? "Suspended" : "Active"}</td>
+                <td className={`${adminTableCellClass} w-[220px] text-[var(--ui-text-secondary)]`}>
+                  {new Date(user.createdAt).toLocaleString()}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -178,6 +190,6 @@ export default function AdminUsersPage() {
           onPageSizeChange={setPageSize}
         />
       </GlassCard>
-    </div>
+    </AdminPage>
   );
 }

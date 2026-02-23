@@ -97,8 +97,8 @@ export default function LoginPage() {
               </button>
             </div>
           </label>
-          {reset && <p className="text-sm text-emerald-300">Password updated. Please sign in.</p>}
-          {error && <p className="text-sm text-rose-300 break-words">{error}</p>}
+          {reset && <p className="text-sm text-[var(--success)]">Password updated. Please sign in.</p>}
+          {error && <p className="break-words text-sm text-[var(--danger)]">{error}</p>}
           <div className="pt-1">
             <Button type="submit" fullWidth disabled={loading}>
               {loading ? "Signing in..." : "Sign in"}

@@ -1,45 +1,48 @@
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Activity, Cog, LayoutDashboard, Package, Search, ShoppingCart, Users } from "lucide-react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/auth";
 import AppHeader from "./layout/AppHeader";
-import { useTheme } from "../context/theme";
+import Select from "./ui/Select";
+
+type NavItem = {
+  to: string;
+  label: string;
+  icon: ReactNode;
+};
 
 export default function AppShell({ children }: PropsWithChildren) {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const isLoggedIn = Boolean(user);
+  const isAdmin = user?.role === "ADMIN";
+  const isAnalyticsRoute = location.pathname.startsWith("/admin/analytics");
 
-  const navItems = useMemo(
-    () => {
-      if (!isLoggedIn) {
-        return [{ to: "/login", label: "Login" }];
-      }
+  const navItems = useMemo<NavItem[]>(() => {
+    if (isAdmin) {
+      return [
+        { to: "/admin/analytics", label: "Analytics", icon: <LayoutDashboard className="h-4 w-4" /> },
+        { to: "/admin/products", label: "Products", icon: <Package className="h-4 w-4" /> },
+        { to: "/admin/orders", label: "Orders", icon: <ShoppingCart className="h-4 w-4" /> },
+        { to: "/admin/events", label: "Events", icon: <Activity className="h-4 w-4" /> },
+        { to: "/admin/users", label: "Users", icon: <Users className="h-4 w-4" /> },
+        { to: "/admin/settings", label: "Settings", icon: <Cog className="h-4 w-4" /> },
+      ];
+    }
 
-      if (user?.role === "ADMIN") {
-        return [
-          { to: "/admin/analytics", label: "Analytics" },
-          { to: "/admin/products", label: "Products" },
-          { to: "/admin/orders", label: "Orders" },
-          { to: "/admin/events", label: "Events" },
-          { to: "/admin/users", label: "Users" },
-          { to: "/admin/settings", label: "Settings" },
-        ];
-      }
-
-      return [{ to: "/profile", label: "Profile" }];
-    },
-    [isLoggedIn, user?.role]
-  );
+    return [{ to: "/login", label: "Login", icon: <LayoutDashboard className="h-4 w-4" /> }];
+  }, [isAdmin]);
 
   const isActivePath = useCallback((path: string) => {
-    if (path === "/admin" && location.pathname.startsWith("/admin")) return true;
-    if (path === "/profile" && location.pathname.startsWith("/profile")) return true;
-    return location.pathname === path;
+    if (path === "/admin/analytics") {
+      return location.pathname === "/admin" || location.pathname.startsWith("/admin/analytics");
+    }
+    return location.pathname.startsWith(path);
   }, [location.pathname]);
 
   const pageTitle = useMemo(() => {
@@ -55,6 +58,19 @@ export default function AppShell({ children }: PropsWithChildren) {
     if (location.pathname.startsWith("/reset-password")) return "Reset Password";
     return "Workspace";
   }, [location.pathname]);
+
+  const analyticsSearch = searchParams.get("q") ?? "";
+  const analyticsRange = searchParams.get("range") ?? "7d";
+
+  const updateAnalyticsParam = useCallback((key: "q" | "range", value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value.trim()) {
+      next.set(key, value);
+    } else {
+      next.delete(key);
+    }
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const mobileSidebarRef = useRef<HTMLDivElement | null>(null);
 
@@ -79,41 +95,108 @@ export default function AppShell({ children }: PropsWithChildren) {
     };
   }, [isSidebarOpen]);
 
-  const desktopNavItems = navItems.map((item) => ({
-    ...item,
-    active: isActivePath(item.to),
-  }));
+  const analyticsHeaderControls = isLoggedIn && isAnalyticsRoute ? (
+    <div className="flex items-center gap-2.5">
+      <label className="relative hidden md:block">
+        <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-[var(--ui-text-muted)]" />
+        <input
+          value={analyticsSearch}
+          onChange={(event) => updateAnalyticsParam("q", event.target.value)}
+          placeholder="Search activity"
+          className="h-10 w-60 rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-9 text-sm text-[var(--ui-text-primary)] shadow-[var(--ui-shadow-sm)] outline-none transition focus:border-[var(--ui-accent)] focus:ring-2 focus:ring-[var(--ui-accent-soft)]"
+        />
+      </label>
+      <div className="w-40">
+        <Select
+          value={analyticsRange}
+          onChange={(value) => updateAnalyticsParam("range", value)}
+          ariaLabel="Analytics date range"
+          items={[
+            { label: "Last 7 days", value: "7d" },
+            { label: "Last 30 days", value: "30d" },
+            { label: "Last 90 days", value: "90d" },
+          ]}
+        />
+      </div>
+    </div>
+  ) : null;
+
+  const desktopSidebar = isLoggedIn && isAdmin ? (
+    <aside className="hidden h-screen lg:sticky lg:top-0 lg:flex lg:w-[var(--layout-sidebar-width)] lg:flex-col lg:border-r lg:border-[color:var(--ui-border-soft)] lg:bg-[color:var(--ui-sidebar-bg)] lg:px-4 lg:py-4 lg:backdrop-blur-xl">
+      <div className="mb-5 flex items-center gap-3 rounded-[var(--ui-radius-xl)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-3.5 py-3 shadow-[var(--ui-shadow-panel)]">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--accent-soft)] text-sm font-semibold text-[var(--accent)]">
+          AS
+        </span>
+        <div>
+          <p className="text-sm font-semibold tracking-tight text-[var(--ui-text-primary)]">Analytics SaaS</p>
+          <p className="text-xs text-[var(--ui-text-muted)]">Admin Console</p>
+        </div>
+      </div>
+
+      <div className="mb-2 px-1 text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">
+        Workspace
+      </div>
+      <nav className="grid gap-1">
+        {navItems.map((item) => {
+          const isActive = isActivePath(item.to);
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={`group relative inline-flex items-center gap-3 rounded-[var(--ui-radius-md)] border px-3.5 py-2.5 text-sm transition ${
+                isActive
+                  ? "border-[color:color-mix(in_srgb,var(--accent)_38%,transparent)] bg-[color:var(--ui-accent-soft)] text-[var(--accent)] shadow-[var(--ui-shadow-sm)]"
+                  : "border-transparent text-[var(--ui-text-muted)] hover:border-[color:var(--ui-border-soft)] hover:bg-[color:var(--surface)] hover:text-[var(--ui-text-primary)]"
+              }`}
+            >
+              {isActive ? <span aria-hidden className="absolute left-1 top-2.5 bottom-2.5 w-1 rounded-full bg-[var(--accent)]/75" /> : null}
+              <span className="text-current">{item.icon}</span>
+              <span className="font-medium">{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className="mt-auto rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-3 py-2.5 text-xs text-[var(--ui-text-muted)]">
+        Signed in as
+        <div className="mt-1 truncate text-sm font-medium text-[var(--ui-text-primary)]">{user?.email}</div>
+      </div>
+    </aside>
+  ) : null;
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
-      <AppHeader
-        isLoggedIn={isLoggedIn}
-        role={user?.role ?? null}
-        userEmail={user?.email ?? null}
-        theme={theme}
-        pageTitle={pageTitle}
-        navItems={desktopNavItems}
-        onNavigate={(path) => navigate(path)}
-        onToggleMobileMenu={() => setIsSidebarOpen((prev) => !prev)}
-        onToggleTheme={toggleTheme}
-        onLogout={async () => {
-          await logout();
-          navigate("/login", { replace: true });
-        }}
-      />
+      <div className="mx-auto flex min-h-screen max-w-[1600px]">
+        {desktopSidebar}
 
-      <main className="page-fade scroll-gutter-stable mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
-        {children}
-      </main>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <AppHeader
+            isLoggedIn={isLoggedIn}
+            role={user?.role ?? null}
+            userEmail={user?.email ?? null}
+            pageTitle={pageTitle}
+            navItems={[]}
+            headerControls={analyticsHeaderControls}
+            onNavigate={(path) => navigate(path)}
+            onToggleMobileMenu={() => setIsSidebarOpen((prev) => !prev)}
+            onLogout={async () => {
+              await logout();
+              navigate("/login", { replace: true });
+            }}
+          />
+
+          <main className="page-fade scroll-gutter-stable flex-1 px-4 py-5 sm:px-6 lg:px-8">{children}</main>
+        </div>
+      </div>
 
       <div
-        className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition-opacity lg:hidden ${
+        className={`fixed inset-0 z-40 bg-slate-900/18 backdrop-blur-sm transition-opacity lg:hidden ${
           isSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       >
         <div
           ref={mobileSidebarRef}
-          className={`absolute left-0 top-16 h-[calc(100dvh-4rem)] w-72 border-r border-[color:var(--border)] bg-[color:var(--surface)]/92 p-4 shadow-[var(--shadow-card)] transition-transform ${
+          className={`absolute left-0 top-16 h-[calc(100dvh-4rem)] w-72 border-r border-[color:var(--ui-border-soft)] bg-[color:var(--ui-sidebar-bg)] px-4 py-4 shadow-[var(--shadow-card)] backdrop-blur-xl transition-transform ${
             isSidebarOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
@@ -128,7 +211,7 @@ export default function AppShell({ children }: PropsWithChildren) {
             </button>
           </div>
 
-          <div className="grid gap-2">
+          <div className="grid gap-1.5">
             {navItems.map((item) => {
               const isActive = isActivePath(item.to);
               return (
@@ -136,15 +219,14 @@ export default function AppShell({ children }: PropsWithChildren) {
                   key={item.to}
                   to={item.to}
                   onClick={() => setIsSidebarOpen(false)}
-                  className={`rounded-[var(--radius-md)] px-4 py-3 text-base font-semibold transition ${
+                  className={`inline-flex items-center gap-3 rounded-[var(--ui-radius-md)] border px-4 py-2.5 text-sm transition ${
                     isActive
-                      ? "bg-[var(--accent)] text-[var(--accent-contrast)]"
-                      : "text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[color:var(--surface-strong)]"
+                      ? "border-[color:color-mix(in_srgb,var(--accent)_38%,transparent)] bg-[color:var(--ui-accent-soft)] text-[var(--accent)]"
+                      : "border-[color:var(--ui-border-soft)] text-[var(--text-muted)] hover:bg-[color:var(--surface-alt)] hover:text-[var(--text)]"
                   }`}
                 >
-                  <span className="inline-flex items-center gap-2">
-                    <span>{item.label}</span>
-                  </span>
+                  <span>{item.icon}</span>
+                  <span className="font-medium">{item.label}</span>
                 </Link>
               );
             })}
@@ -153,29 +235,12 @@ export default function AppShell({ children }: PropsWithChildren) {
               <>
                 <button
                   type="button"
-                  onClick={() => toggleTheme()}
-                  className="flex items-center justify-between rounded-[var(--radius-md)] px-4 py-3 text-left text-base font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)] hover:bg-[color:var(--surface-strong)]"
-                >
-                  <span>Theme</span>
-                  {theme === "dark" ? (
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-                      <circle cx="12" cy="12" r="4" />
-                      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-                      <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5Z" />
-                    </svg>
-                  )}
-                </button>
-                <button
-                  type="button"
                   onClick={async () => {
                     await logout();
                     setIsSidebarOpen(false);
                     navigate("/login", { replace: true });
                   }}
-                  className="rounded-[var(--radius-md)] px-4 py-3 text-left text-base font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)] hover:bg-[color:var(--surface-strong)]"
+                  className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] px-4 py-2.5 text-left text-sm font-medium text-[var(--text-muted)] transition hover:bg-[color:var(--surface)] hover:text-[var(--text)]"
                 >
                   Logout
                 </button>
