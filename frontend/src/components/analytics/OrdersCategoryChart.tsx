@@ -27,6 +27,7 @@ export default function OrdersCategoryChart({ data }: OrdersCategoryChartProps) 
   const tooltipY = hoveredIndex !== null && hoveredPoint
     ? height - paddingBottom - ((hoveredPoint.value / maxValue) * chartHeight)
     : 0;
+  const tickStep = Math.max(1, Math.ceil(data.length / 8));
 
   return (
     <div className="relative w-full overflow-hidden rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] p-3">
@@ -63,9 +64,11 @@ export default function OrdersCategoryChart({ data }: OrdersCategoryChartProps) 
                 onMouseEnter={() => setHoveredIndex(index)}
                 onMouseLeave={() => setHoveredIndex(null)}
               />
-              <text x={x + barWidth / 2} y={height - 12} textAnchor="middle" fill="var(--ui-text-muted)" fontSize="11">
-                {point.label}
-              </text>
+              {index % tickStep === 0 || index === data.length - 1 ? (
+                <text x={x + barWidth / 2} y={height - 12} textAnchor="middle" fill="var(--ui-text-muted)" fontSize="11">
+                  {point.label}
+                </text>
+              ) : null}
               <text x={x + barWidth / 2} y={Math.max(12, y - 6)} textAnchor="middle" fill="var(--ui-text-primary)" fontSize="11">
                 {point.value}
               </text>

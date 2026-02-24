@@ -6,6 +6,7 @@ import { useAuth } from "../context/auth";
 import AppHeader from "./layout/AppHeader";
 import Select from "./ui/Select";
 import { track, trackPageView } from "../lib/track";
+import { ALLOWED_RANGES, normalizeRange } from "../api/adminAnalytics";
 
 type NavItem = {
   to: string;
@@ -65,10 +66,26 @@ export default function AppShell({ children }: PropsWithChildren) {
   }, [location.pathname]);
 
   const analyticsSearch = searchParams.get("q") ?? "";
-  const analyticsRange = searchParams.get("range") ?? "7d";
+  const rawAnalyticsRange = searchParams.get("range");
+  const analyticsRange = normalizeRange(rawAnalyticsRange);
+
+  useEffect(() => {
+    if (!isAnalyticsRoute) return;
+    if (!rawAnalyticsRange) return;
+    if (rawAnalyticsRange === analyticsRange) return;
+    const next = new URLSearchParams(searchParams);
+    next.set("range", analyticsRange);
+    setSearchParams(next, { replace: true });
+  }, [analyticsRange, isAnalyticsRoute, rawAnalyticsRange, searchParams, setSearchParams]);
 
   const updateAnalyticsParam = useCallback((key: "q" | "range", value: string) => {
     const next = new URLSearchParams(searchParams);
+    if (key === "range") {
+      const safeRange = normalizeRange(value);
+      next.set("range", safeRange);
+      setSearchParams(next, { replace: true });
+      return;
+    }
     if (value.trim()) {
       next.set(key, value);
     } else {
@@ -125,11 +142,10 @@ export default function AppShell({ children }: PropsWithChildren) {
           value={analyticsRange}
           onChange={(value) => updateAnalyticsParam("range", value)}
           ariaLabel="Analytics date range"
-          items={[
-            { label: "Last 7 days", value: "7d" },
-            { label: "Last 30 days", value: "30d" },
-            { label: "Last 90 days", value: "90d" },
-          ]}
+          items={ALLOWED_RANGES.map((range) => ({
+            label: range === "30d" ? "Last 30 days" : "Last 7 days",
+            value: range,
+          }))}
         />
       </div>
     </div>

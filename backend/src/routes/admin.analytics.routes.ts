@@ -232,14 +232,19 @@ router.get(
     const qRaw = typeof req.query.q === "string" ? req.query.q.trim() : "";
     const q = qRaw.slice(0, 80);
     const cursorId = typeof req.query.cursor === "string" ? req.query.cursor.trim() : "";
+    const showArchivedRaw = typeof req.query.showArchived === "string" ? req.query.showArchived.trim().toLowerCase() : "";
+    const showArchived = showArchivedRaw === "1" || showArchivedRaw === "true";
 
     let cursorFilter: Prisma.ProductWhereInput | undefined;
     if (cursorId) {
       const cursorRow = await prisma.product.findUnique({
         where: { id: cursorId },
-        select: { id: true, createdAt: true },
+        select: { id: true, createdAt: true, isActive: true },
       });
       if (!cursorRow) {
+        throw new HttpError(400, "Invalid cursor");
+      }
+      if (!showArchived && !cursorRow.isActive) {
         throw new HttpError(400, "Invalid cursor");
       }
       cursorFilter = {
@@ -259,6 +264,7 @@ router.get(
       : undefined;
 
     const andFilters: Prisma.ProductWhereInput[] = [];
+    if (!showArchived) andFilters.push({ isActive: true });
     if (searchFilter) andFilters.push(searchFilter);
     if (cursorFilter) andFilters.push(cursorFilter);
     const where: Prisma.ProductWhereInput = andFilters.length ? { AND: andFilters } : {};
@@ -271,6 +277,7 @@ router.get(
       select: {
         id: true,
         name: true,
+        isActive: true,
         createdAt: true,
         updatedAt: true,
         _count: {
@@ -672,7 +679,7 @@ router.delete(
       select: { id: true, isActive: true },
     });
     if (!product) {
-      throw new HttpError(404, "product_not_found");
+      throw new HttpError(404, "Product not found", "product_not_found");
     }
 
     if (product.isActive) {
@@ -705,7 +712,7 @@ router.patch(
       select: { id: true },
     });
     if (!existing) {
-      throw new HttpError(404, "order_not_found");
+      throw new HttpError(404, "Order not found", "order_not_found");
     }
 
     const order = await prisma.order.update({
@@ -794,7 +801,7 @@ router.post(
       select: { id: true },
     });
     if (!product) {
-      throw new HttpError(404, "product_not_found");
+      throw new HttpError(404, "Product not found", "product_not_found");
     }
 
     const order = await orderDelegate.create({
@@ -845,13 +852,13 @@ router.post(
     if (productId) {
       const product = await productDelegate.findUnique({ where: { id: productId }, select: { id: true } });
       if (!product) {
-        throw new HttpError(404, "product_not_found");
+        throw new HttpError(404, "Product not found", "product_not_found");
       }
     }
     if (orderId) {
       const order = await orderDelegate.findUnique({ where: { id: orderId }, select: { id: true } });
       if (!order) {
-        throw new HttpError(404, "order_not_found");
+        throw new HttpError(404, "Order not found", "order_not_found");
       }
     }
 

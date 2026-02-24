@@ -1,5 +1,5 @@
 import { Search } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   archiveAdminProduct,
   createAdminProduct,
@@ -50,6 +50,7 @@ function shortId(value: string) {
 export default function AdminProductsPage() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
+  const [showArchived, setShowArchived] = useState(false);
 
   const [products, setProducts] = useState<AdminProductListItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -78,7 +79,11 @@ export default function AdminProductsPage() {
     setProducts([]);
     setNextCursor(null);
 
-    listAdminProducts({ limit: PAGE_SIZE, q: debouncedSearch || undefined })
+    listAdminProducts({
+      limit: PAGE_SIZE,
+      q: debouncedSearch || undefined,
+      showArchived,
+    })
       .then((result) => {
         if (!active) return;
         setProducts(result.products);
@@ -98,7 +103,7 @@ export default function AdminProductsPage() {
     return () => {
       active = false;
     };
-  }, [debouncedSearch, refreshKey]);
+  }, [debouncedSearch, refreshKey, showArchived]);
 
   async function loadMore() {
     if (!nextCursor || loadingMore) return;
@@ -108,6 +113,7 @@ export default function AdminProductsPage() {
         limit: PAGE_SIZE,
         q: debouncedSearch || undefined,
         cursor: nextCursor,
+        showArchived,
       });
       setProducts((prev) => {
         const merged = [...prev, ...result.products];
@@ -133,6 +139,7 @@ export default function AdminProductsPage() {
     return products.map((product) => ({
       id: product.id,
       name: product.name,
+      isActive: product.isActive ?? true,
       shortId: shortId(product.id),
       created: formatDateTime(product.createdAt),
       orders: product._count?.orders ?? 0,
@@ -199,6 +206,16 @@ export default function AdminProductsPage() {
     }
   }
 
+  const handleCloseCreateDialog = useCallback(() => {
+    if (createSaving) return;
+    setIsCreateOpen(false);
+  }, [createSaving]);
+
+  const handleCloseArchiveDialog = useCallback(() => {
+    if (archiveSaving) return;
+    setArchiveTarget(null);
+  }, [archiveSaving]);
+
   return (
     <AdminPage>
       <GlassCard>
@@ -216,6 +233,17 @@ export default function AdminProductsPage() {
                   placeholder="Search products"
                   className="h-10 w-64 rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-9 text-sm text-[var(--ui-text-primary)] shadow-[var(--ui-shadow-sm)] outline-none transition focus:border-[var(--ui-accent)] focus:ring-2 focus:ring-[var(--ui-accent-soft)]"
                 />
+              </label>
+              <label className="inline-flex h-10 items-center gap-2 rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-3 text-sm text-[var(--ui-text-primary)] shadow-[var(--ui-shadow-sm)]">
+                <input
+                  type="checkbox"
+                  checked={showArchived}
+                  onChange={(event) => {
+                    setShowArchived(event.target.checked);
+                  }}
+                  className="h-4 w-4 rounded border-[color:var(--ui-border-soft)] text-[var(--ui-accent)] focus:ring-[var(--ui-accent-soft)]"
+                />
+                <span>Show archived</span>
               </label>
               <Button
                 type="button"
@@ -258,7 +286,14 @@ export default function AdminProductsPage() {
             {rows.map((row) => (
               <tr key={row.id} className={adminTableRowClass}>
                 <td className={`${adminTableCellClass} min-w-[220px] truncate font-medium`} title={row.name}>
-                  {row.name}
+                  <div className="inline-flex items-center gap-2">
+                    <span className="truncate">{row.name}</span>
+                    {!row.isActive ? (
+                      <span className="rounded border border-[color:var(--ui-border-soft)] bg-[color:var(--surface-alt)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--ui-text-muted)]">
+                        Archived
+                      </span>
+                    ) : null}
+                  </div>
                 </td>
                 <td className={`${adminTableCellClass} w-[180px] text-[var(--ui-text-muted)]`} title={row.id}>
                   <div className="flex items-center gap-2">
@@ -315,10 +350,7 @@ export default function AdminProductsPage() {
 
       <Dialog
         open={isCreateOpen}
-        onClose={() => {
-          if (createSaving) return;
-          setIsCreateOpen(false);
-        }}
+        onClose={handleCloseCreateDialog}
         className="max-w-md"
       >
         <div className="space-y-4">
@@ -358,10 +390,7 @@ export default function AdminProductsPage() {
 
       <Dialog
         open={Boolean(archiveTarget)}
-        onClose={() => {
-          if (archiveSaving) return;
-          setArchiveTarget(null);
-        }}
+        onClose={handleCloseArchiveDialog}
         className="max-w-md"
       >
         <div className="space-y-4">

@@ -2,6 +2,7 @@ import { apiFetch } from "../lib/api";
 
 export type AnalyticsRange = "7d" | "30d";
 export type AnalyticsMetric = "revenue" | "orders" | "users";
+export const ALLOWED_RANGES = ["7d", "30d"] as const;
 
 export type AnalyticsOverview = {
   revenue: number;
@@ -46,6 +47,7 @@ export type AnalyticsActivityResponse = {
 export type AdminProductListItem = {
   id: string;
   name: string;
+  isActive?: boolean;
   createdAt: string;
   updatedAt?: string;
   _count?: {
@@ -84,8 +86,12 @@ export type AdminOrdersResponse = {
   nextCursor: string | null;
 };
 
-function normalizeRange(range: string): AnalyticsRange {
-  return range === "30d" ? "30d" : "7d";
+export function normalizeRange(range: string | null | undefined): AnalyticsRange {
+  if (range === "7d" || range === "30d") return range;
+  if (typeof range === "string" && range.trim().length > 0) {
+    console.warn(`[analytics] Unsupported range "${range}" received. Falling back to "7d".`);
+  }
+  return "7d";
 }
 
 export function getOverview(range: string) {
@@ -112,7 +118,7 @@ export function getActivity(range: string, limit = 50, q?: string, cursor?: stri
   return apiFetch<AnalyticsActivityResponse>(`/admin/analytics/activity?${params.toString()}`);
 }
 
-export function listAdminProducts(params?: { cursor?: string; q?: string; limit?: number }) {
+export function listAdminProducts(params?: { cursor?: string; q?: string; limit?: number; showArchived?: boolean }) {
   const query = new URLSearchParams();
   query.set("limit", String(Math.min(100, Math.max(1, params?.limit ?? 25))));
   if (params?.q?.trim()) {
@@ -120,6 +126,9 @@ export function listAdminProducts(params?: { cursor?: string; q?: string; limit?
   }
   if (params?.cursor?.trim()) {
     query.set("cursor", params.cursor.trim());
+  }
+  if (params?.showArchived) {
+    query.set("showArchived", "1");
   }
   return apiFetch<AdminProductsResponse>(`/admin/products?${query.toString()}`);
 }

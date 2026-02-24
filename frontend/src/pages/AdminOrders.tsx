@@ -235,8 +235,7 @@ export default function AdminOrdersPage() {
     } catch (err: unknown) {
       const apiErr = err as ApiError;
       const message = err instanceof Error ? err.message : "Unable to create order.";
-      const isProductNotFound =
-        apiErr?.code === "product_not_found" || message.toLowerCase().includes("product_not_found");
+      const isProductNotFound = apiErr?.code === "product_not_found";
       if (isProductNotFound) {
         setProductFieldError("Product not found. Select a product from the list.");
       } else {

@@ -98,8 +98,9 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       message?: string;
       fieldErrors?: Record<string, string>;
     };
-    const message = payload.message ?? payload.error ?? "Request failed";
-    throw new ApiError(message, response.status, payload.error, payload.fieldErrors);
+    const code = typeof payload.error === "string" && payload.error.trim().length > 0 ? payload.error : undefined;
+    const message = payload.message ?? code ?? "Request failed";
+    throw new ApiError(message, response.status, code, payload.fieldErrors);
   }
 
   return data as T;

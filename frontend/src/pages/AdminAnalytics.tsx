@@ -15,7 +15,7 @@ import Badge from "../components/ui/Badge";
 import StatCard from "../components/ui/StatCard";
 import GlassCard from "../components/ui/GlassCard";
 import type { AnalyticsActivityEvent, AnalyticsOverview } from "../api/adminAnalytics";
-import { getActivity, getOverview, getTrends } from "../api/adminAnalytics";
+import { getActivity, getOverview, getTrends, normalizeRange } from "../api/adminAnalytics";
 import type { ApiError } from "../lib/api";
 import Button from "../components/Button";
 import { formatActorLabel, formatEventDetail, formatEventType } from "../lib/activityFormat";
@@ -45,7 +45,7 @@ function formatSignedPoints(value: number) {
 function formatDayLabel(label: string) {
   const date = new Date(`${label}T00:00:00.000Z`);
   if (Number.isNaN(date.getTime())) return label;
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(date);
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit" }).format(date);
 }
 
 function activityStatusFromEvent(eventName: string): "Completed" | "Pending" | "In Review" | "Alert" {
@@ -75,7 +75,7 @@ function statusTone(status: string): "success" | "warning" | "neutral" {
 export default function AdminAnalyticsPage() {
   const [searchParams] = useSearchParams();
   const search = searchParams.get("q") ?? "";
-  const dateRange = searchParams.get("range") === "30d" ? "30d" : "7d";
+  const dateRange = normalizeRange(searchParams.get("range"));
   const debouncedSearch = useDebouncedValue(search, 300);
 
   const [overview, setOverview] = useState<AnalyticsOverview | null>(null);
@@ -313,6 +313,9 @@ export default function AdminAnalyticsPage() {
               {loadingMore ? "Loading..." : "Load more"}
             </Button>
           </div>
+        ) : null}
+        {!loading && !nextCursor && filteredRows.length > 0 ? (
+          <p className="mt-3 text-center text-xs text-[var(--ui-text-muted)]">End of activity list.</p>
         ) : null}
       </GlassCard>
     </AdminPage>

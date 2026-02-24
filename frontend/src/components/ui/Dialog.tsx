@@ -21,6 +21,11 @@ const FOCUSABLE_SELECTOR = [
 export default function Dialog({ open, onClose, children, className }: DialogProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const lastFocusedRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -33,7 +38,7 @@ export default function Dialog({ open, onClose, children, className }: DialogPro
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab" || !panel) return;
@@ -55,7 +60,7 @@ export default function Dialog({ open, onClose, children, className }: DialogPro
       document.removeEventListener("keydown", onKeyDown);
       lastFocusedRef.current?.focus();
     };
-  }, [onClose, open]);
+  }, [open]);
 
   if (!open) return null;
 

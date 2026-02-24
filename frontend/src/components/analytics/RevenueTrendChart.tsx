@@ -32,6 +32,7 @@ export default function RevenueTrendChart({ data }: RevenueTrendChartProps) {
   const hoveredPoint = hoveredIndex !== null ? points[hoveredIndex] : null;
   const tooltipLeft = hoveredPoint ? (hoveredPoint.x / width) * 100 : 0;
   const tooltipTop = hoveredPoint ? (hoveredPoint.y / height) * 100 : 0;
+  const tickStep = Math.max(1, Math.ceil(data.length / 8));
 
   return (
     <div className="relative w-full overflow-hidden rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] p-3">
@@ -79,10 +80,19 @@ export default function RevenueTrendChart({ data }: RevenueTrendChartProps) {
           </>
         ) : null}
 
-        {points.map((point) => (
-          <text key={`label-${point.label}`} x={point.x} y={height - 12} textAnchor="middle" fill="var(--ui-text-muted)" fontSize="11">
-            {point.label}
-          </text>
+        {points.map((point, index) => (
+          index % tickStep === 0 || index === points.length - 1 ? (
+            <text
+              key={`label-${point.label}-${index}`}
+              x={point.x}
+              y={height - 12}
+              textAnchor="middle"
+              fill="var(--ui-text-muted)"
+              fontSize="11"
+            >
+              {point.label}
+            </text>
+          ) : null
         ))}
 
         {points.map((point, index) => (

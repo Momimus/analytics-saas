@@ -7,7 +7,9 @@ export type ErrorCode =
   | "NOT_FOUND"
   | "CONFLICT"
   | "TOO_MANY_REQUESTS"
-  | "INTERNAL_ERROR";
+  | "INTERNAL_ERROR"
+  | "product_not_found"
+  | "order_not_found";
 
 export type ErrorBody = {
   ok: false;
