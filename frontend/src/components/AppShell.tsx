@@ -1,10 +1,11 @@
 import type { PropsWithChildren, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Activity, Cog, LayoutDashboard, Package, Search, ShoppingCart, Users } from "lucide-react";
+import { Activity, ChevronsLeft, ChevronsRight, Cog, LayoutDashboard, Package, Search, ShoppingCart, Users } from "lucide-react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/auth";
 import AppHeader from "./layout/AppHeader";
 import Select from "./ui/Select";
+import { track, trackPageView } from "../lib/track";
 
 type NavItem = {
   to: string;
@@ -12,12 +13,18 @@ type NavItem = {
   icon: ReactNode;
 };
 
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "sidebarCollapsed";
+
 export default function AppShell({ children }: PropsWithChildren) {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, logout } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "1";
+  });
 
   const isLoggedIn = Boolean(user);
   const isAdmin = user?.role === "ADMIN";
@@ -30,7 +37,6 @@ export default function AppShell({ children }: PropsWithChildren) {
         { to: "/admin/products", label: "Products", icon: <Package className="h-4 w-4" /> },
         { to: "/admin/orders", label: "Orders", icon: <ShoppingCart className="h-4 w-4" /> },
         { to: "/admin/events", label: "Events", icon: <Activity className="h-4 w-4" /> },
-        { to: "/admin/users", label: "Users", icon: <Users className="h-4 w-4" /> },
         { to: "/admin/settings", label: "Settings", icon: <Cog className="h-4 w-4" /> },
       ];
     }
@@ -50,7 +56,6 @@ export default function AppShell({ children }: PropsWithChildren) {
     if (location.pathname.startsWith("/admin/products")) return "Products";
     if (location.pathname.startsWith("/admin/orders")) return "Orders";
     if (location.pathname.startsWith("/admin/events")) return "Events";
-    if (location.pathname.startsWith("/admin/users")) return "Users";
     if (location.pathname.startsWith("/admin/settings")) return "Settings";
     if (location.pathname.startsWith("/admin")) return "Admin";
     if (location.pathname.startsWith("/profile")) return "Profile";
@@ -95,6 +100,15 @@ export default function AppShell({ children }: PropsWithChildren) {
     };
   }, [isSidebarOpen]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, isSidebarCollapsed ? "1" : "0");
+  }, [isSidebarCollapsed]);
+
+  useEffect(() => {
+    trackPageView(location.pathname);
+  }, [location.pathname]);
+
   const analyticsHeaderControls = isLoggedIn && isAnalyticsRoute ? (
     <div className="flex items-center gap-2.5">
       <label className="relative hidden md:block">
@@ -122,20 +136,60 @@ export default function AppShell({ children }: PropsWithChildren) {
   ) : null;
 
   const desktopSidebar = isLoggedIn && isAdmin ? (
-    <aside className="hidden h-screen lg:sticky lg:top-0 lg:flex lg:w-[var(--layout-sidebar-width)] lg:flex-col lg:border-r lg:border-[color:var(--ui-border-soft)] lg:bg-[color:var(--ui-sidebar-bg)] lg:px-4 lg:py-4 lg:backdrop-blur-xl">
-      <div className="mb-5 flex items-center gap-3 rounded-[var(--ui-radius-xl)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-3.5 py-3 shadow-[var(--ui-shadow-panel)]">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--accent-soft)] text-sm font-semibold text-[var(--accent)]">
+    <aside
+      className={`hidden h-screen transition-all duration-200 lg:sticky lg:top-0 lg:flex lg:flex-col lg:border-r lg:border-[color:var(--ui-border-soft)] lg:bg-[color:var(--ui-sidebar-bg)] lg:py-4 lg:backdrop-blur-xl ${
+        isSidebarCollapsed ? "lg:w-16 lg:px-2.5" : "lg:w-64 lg:px-4"
+      }`}
+    >
+      <div className={`mb-5 flex items-center rounded-[var(--ui-radius-xl)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] py-3 shadow-[var(--ui-shadow-panel)] ${isSidebarCollapsed ? "justify-center px-2" : "justify-between gap-3 px-3.5"}`}>
+        <button
+          type="button"
+          onClick={() => {
+            if (isSidebarCollapsed) setIsSidebarCollapsed(false);
+          }}
+          aria-label={isSidebarCollapsed ? "Expand sidebar" : "Sidebar brand"}
+          className={`grid h-9 w-9 shrink-0 place-items-center rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--accent-soft)] text-sm font-semibold text-[var(--accent)] transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ui-accent)] ${
+            isSidebarCollapsed ? "cursor-pointer" : "cursor-default"
+          }`}
+        >
           AS
-        </span>
-        <div>
-          <p className="text-sm font-semibold tracking-tight text-[var(--ui-text-primary)]">Analytics SaaS</p>
-          <p className="text-xs text-[var(--ui-text-muted)]">Admin Console</p>
-        </div>
+        </button>
+
+        {!isSidebarCollapsed ? (
+          <>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold tracking-tight text-[var(--ui-text-primary)]">Analytics SaaS</p>
+              <p className="text-xs text-[var(--ui-text-muted)]">Admin Console</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed((prev) => !prev)}
+              aria-label="Collapse sidebar"
+              aria-expanded={!isSidebarCollapsed}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] text-[var(--ui-text-muted)] transition hover:bg-[color:var(--surface-alt)] hover:text-[var(--ui-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ui-accent)]"
+            >
+              <ChevronsLeft className="h-4 w-4" />
+            </button>
+          </>
+        ) : null}
       </div>
 
-      <div className="mb-2 px-1 text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">
-        Workspace
-      </div>
+      {isSidebarCollapsed ? (
+        <button
+          type="button"
+          onClick={() => setIsSidebarCollapsed(false)}
+          aria-label="Expand sidebar"
+          aria-expanded={!isSidebarCollapsed}
+          className="mb-3 inline-flex h-8 w-full items-center justify-center rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] text-[var(--ui-text-muted)] transition hover:bg-[color:var(--surface)] hover:text-[var(--ui-text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ui-accent)]"
+        >
+          <ChevronsRight className="h-4 w-4" />
+        </button>
+      ) : (
+        <div className="mb-2 px-1 text-[11px] font-medium uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">
+          Workspace
+        </div>
+      )}
+
       <nav className="grid gap-1">
         {navItems.map((item) => {
           const isActive = isActivePath(item.to);
@@ -143,24 +197,39 @@ export default function AppShell({ children }: PropsWithChildren) {
             <Link
               key={item.to}
               to={item.to}
-              className={`group relative inline-flex items-center gap-3 rounded-[var(--ui-radius-md)] border px-3.5 py-2.5 text-sm transition ${
+              title={isSidebarCollapsed ? item.label : undefined}
+              className={`group relative inline-flex items-center rounded-[var(--ui-radius-md)] border text-sm transition ${
                 isActive
                   ? "border-[color:color-mix(in_srgb,var(--accent)_38%,transparent)] bg-[color:var(--ui-accent-soft)] text-[var(--accent)] shadow-[var(--ui-shadow-sm)]"
                   : "border-transparent text-[var(--ui-text-muted)] hover:border-[color:var(--ui-border-soft)] hover:bg-[color:var(--surface)] hover:text-[var(--ui-text-primary)]"
-              }`}
+              } ${isSidebarCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3.5 py-2.5"}`}
             >
-              {isActive ? <span aria-hidden className="absolute left-1 top-2.5 bottom-2.5 w-1 rounded-full bg-[var(--accent)]/75" /> : null}
+              {isActive ? (
+                <span
+                  aria-hidden
+                  className={`absolute top-2.5 bottom-2.5 w-1 rounded-full bg-[var(--accent)]/75 ${isSidebarCollapsed ? "left-0.5" : "left-1"}`}
+                />
+              ) : null}
               <span className="text-current">{item.icon}</span>
-              <span className="font-medium">{item.label}</span>
+              {!isSidebarCollapsed ? <span className="font-medium">{item.label}</span> : null}
             </Link>
           );
         })}
       </nav>
 
-      <div className="mt-auto rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-3 py-2.5 text-xs text-[var(--ui-text-muted)]">
-        Signed in as
-        <div className="mt-1 truncate text-sm font-medium text-[var(--ui-text-primary)]">{user?.email}</div>
-      </div>
+      {isSidebarCollapsed ? (
+        <div
+          title={user?.email ?? "Signed-in user"}
+          className="mt-auto flex h-10 items-center justify-center rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] text-[var(--ui-text-muted)]"
+        >
+          <Users className="h-4 w-4" />
+        </div>
+      ) : (
+        <div className="mt-auto rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-3 py-2.5 text-xs text-[var(--ui-text-muted)]">
+          Signed in as
+          <div className="mt-1 truncate text-sm font-medium text-[var(--ui-text-primary)]">{user?.email}</div>
+        </div>
+      )}
     </aside>
   ) : null;
 
@@ -180,6 +249,7 @@ export default function AppShell({ children }: PropsWithChildren) {
             onNavigate={(path) => navigate(path)}
             onToggleMobileMenu={() => setIsSidebarOpen((prev) => !prev)}
             onLogout={async () => {
+              await track("logout", { metadata: { source: "admin" } });
               await logout();
               navigate("/login", { replace: true });
             }}
@@ -236,6 +306,7 @@ export default function AppShell({ children }: PropsWithChildren) {
                 <button
                   type="button"
                   onClick={async () => {
+                    await track("logout", { metadata: { source: "admin" } });
                     await logout();
                     setIsSidebarOpen(false);
                     navigate("/login", { replace: true });

@@ -7,18 +7,21 @@ import crypto from "crypto";
 import { Role } from "@prisma/client";
 import prisma from "./lib/prisma.js";
 import adminRoutes from "./routes/admin.js";
+import { env } from "./config/env.js";
 import { errorHandler } from "./middleware/errorHandler.js";
-import { requireAuth, type AuthRequest } from "./middleware/auth.js";
+import { attachAuthIfPresent, requireAuth, type AuthRequest } from "./middleware/auth.js";
 import { validateProfileUpdatePayload } from "./validation/profileValidation.js";
+import { validateEventName, validateMetadata, validateOptionalId } from "./validation/analyticsValidation.js";
 import { sendError } from "./utils/httpError.js";
+import { HttpError } from "./utils/httpError.js";
 import { createCsrfProtection } from "./middleware/csrf.js";
 import { createRateLimiter, hashIdentifier } from "./middleware/rateLimit.js";
 
 const app = express();
 
-const PORT = Number(process.env.PORT ?? 4000);
-const JWT_SECRET = process.env.JWT_SECRET?.trim() ?? "";
-const IS_PROD = process.env.NODE_ENV === "production";
+const PORT = env.PORT;
+const JWT_SECRET = env.JWT_SECRET;
+const IS_PROD = env.NODE_ENV === "production";
 const ALLOWED_ORIGINS = (
   process.env.ALLOWED_ORIGINS ??
   process.env.CSRF_ALLOWED_ORIGINS ??
@@ -32,13 +35,6 @@ const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? "auth_token";
 const AUTH_COOKIE_SAMESITE = process.env.AUTH_COOKIE_SAMESITE ?? "lax";
 const CSRF_COOKIE_NAME = process.env.CSRF_COOKIE_NAME ?? "csrf_token";
 const CSRF_HEADER_NAME = (process.env.CSRF_HEADER_NAME ?? "x-csrf-token").toLowerCase();
-
-if (JWT_SECRET.length === 0) {
-  if (IS_PROD) {
-    throw new Error("JWT_SECRET must be a non-empty value in production");
-  }
-  console.warn("JWT_SECRET is empty. Non-production mode allows this, but it is insecure.");
-}
 
 if (!IS_PROD && (prisma as unknown as Record<string, unknown>).passwordResetToken === undefined) {
   throw new Error("Prisma client is missing passwordResetToken delegate. Run `npx prisma generate`.");
@@ -114,12 +110,54 @@ const resetIdentityLimiter = createRateLimiter({
   },
 });
 
+const trackLimiter = createRateLimiter({
+  windowMs: Number(process.env.TRACK_RATE_LIMIT_WINDOW_MS ?? 60 * 1000),
+  max: Number(process.env.TRACK_RATE_LIMIT_MAX ?? 120),
+  message: "Too many tracking events. Please try again shortly.",
+});
+
 app.use("/admin", adminRoutes);
 
 type AuthPayload = {
   sub: string;
   role: Role;
 };
+
+type AnalyticsEventCreateDelegate = {
+  create: (args: {
+    data: {
+      eventName: string;
+      userId: string | null;
+      productId: string | null;
+      orderId: string | null;
+      metadata?: unknown;
+    };
+  }) => Promise<unknown>;
+};
+
+type AnalyticsProductFindDelegate = {
+  findUnique: (args: { where: { id: string }; select: { id: true } }) => Promise<{ id: string } | null>;
+};
+
+type AnalyticsOrderFindDelegate = {
+  findUnique: (args: { where: { id: string }; select: { id: true } }) => Promise<{ id: string } | null>;
+};
+
+function getTrackDelegates() {
+  const delegates = prisma as unknown as {
+    analyticsEvent?: AnalyticsEventCreateDelegate;
+    product?: AnalyticsProductFindDelegate;
+    order?: AnalyticsOrderFindDelegate;
+  };
+  if (!delegates.analyticsEvent || !delegates.product || !delegates.order) {
+    throw new HttpError(500, "Prisma client is missing analyticsEvent delegate. Run `npx prisma generate`.");
+  }
+  return {
+    analyticsEvent: delegates.analyticsEvent,
+    product: delegates.product,
+    order: delegates.order,
+  };
+}
 
 function signToken(user: { id: string; role: Role }) {
   return jwt.sign({ sub: user.id, role: user.role } satisfies AuthPayload, JWT_SECRET, {
@@ -166,7 +204,7 @@ function issueCsrfToken(res: express.Response) {
 }
 
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+  res.json({ status: "ok", uptime: process.uptime(), timestamp: Date.now() });
 });
 
 app.get("/auth/csrf", (_req, res) => {
@@ -301,6 +339,47 @@ app.post("/auth/reset-password", authIpLimiter, resetIdentityLimiter, async (req
   return res.json({ ok: true });
 });
 
+app.post("/track", trackLimiter, attachAuthIfPresent, async (req: AuthRequest, res) => {
+  const { analyticsEvent, product, order } = getTrackDelegates();
+  const eventName = validateEventName(req.body?.eventName);
+  const productId = validateOptionalId(req.body?.productId, "productId");
+  const orderId = validateOptionalId(req.body?.orderId, "orderId");
+  const bodyUserId = validateOptionalId(req.body?.userId, "userId");
+  const metadata = validateMetadata(req.body?.metadata);
+  const userId = req.user?.id ?? bodyUserId ?? null;
+
+  if (productId) {
+    const productRow = await product.findUnique({ where: { id: productId }, select: { id: true } });
+    if (!productRow) {
+      throw new HttpError(404, "product_not_found");
+    }
+  }
+
+  if (orderId) {
+    const orderRow = await order.findUnique({ where: { id: orderId }, select: { id: true } });
+    if (!orderRow) {
+      throw new HttpError(404, "order_not_found");
+    }
+  }
+
+  try {
+    await analyticsEvent.create({
+      data: {
+        eventName,
+        userId,
+        productId,
+        orderId,
+        metadata: metadata === undefined ? undefined : metadata,
+      },
+    });
+  } catch (error) {
+    console.error("TRACK_INSERT_ERROR", error);
+    throw new HttpError(500, "Unable to store tracking event");
+  }
+
+  return res.status(204).send();
+});
+
 app.get("/me", requireAuth, async (req: AuthRequest, res) => {
   if (!req.user) {
     return sendError(res, 401, "Unauthorized", "UNAUTHORIZED");
@@ -364,7 +443,16 @@ app.patch("/me", requireAuth, async (req: AuthRequest, res) => {
 
 app.use(errorHandler);
 
-if (process.env.NODE_ENV !== "test") {
+/*
+Deployment verification checklist:
+- env validation working
+- prisma client loads
+- analytics routes working
+- tracking endpoint working
+- health endpoint working
+*/
+
+if (env.NODE_ENV !== "test") {
   app.listen(PORT, () => {
     console.log(`API listening on http://localhost:${PORT}`);
   });

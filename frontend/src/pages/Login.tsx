@@ -5,6 +5,7 @@ import Input from "../components/Input";
 import GlassCard from "../components/ui/GlassCard";
 import { apiFetch } from "../lib/api";
 import { useAuth } from "../context/auth";
+import { track } from "../lib/track";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -39,6 +40,7 @@ export default function LoginPage() {
                 body: JSON.stringify({ email, password }),
               });
               await login();
+              await track("login", { metadata: { source: "admin" } });
               navigate("/admin/analytics", { replace: true });
             } catch (err) {
               setError(err instanceof Error ? err.message : "Login failed");

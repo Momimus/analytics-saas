@@ -7,7 +7,6 @@ import AdminAnalyticsPage from "./pages/AdminAnalytics";
 import AdminProductsPage from "./pages/AdminProducts";
 import AdminOrdersPage from "./pages/AdminOrders";
 import AdminEventsPage from "./pages/AdminEvents";
-import AdminUsersPage from "./pages/AdminUsers";
 import AdminSettingsPage from "./pages/AdminSettings";
 import NotFound404Page from "./pages/NotFound404";
 import Forbidden403Page from "./pages/Forbidden403";
@@ -140,14 +139,6 @@ export default function App() {
           element={
             <RoleProtectedRoute roles={["ADMIN"]}>
               <AdminEventsPage />
-            </RoleProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/users"
-          element={
-            <RoleProtectedRoute roles={["ADMIN"]}>
-              <AdminUsersPage />
             </RoleProtectedRoute>
           }
         />

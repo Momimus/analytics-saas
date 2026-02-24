@@ -44,6 +44,21 @@ This baseline is admin-only:
 - Backend only: `npm --workspace backend run dev`
 - Frontend only: `npm --workspace frontend run dev`
 
+## Production deployment checklist
+1. Install dependencies
+   - `npm install`
+2. Generate Prisma client
+   - `npx prisma generate`
+3. Apply migrations
+   - `npx prisma migrate deploy`
+4. Seed demo data (optional)
+   - `npm run seed:analytics`
+5. Start backend
+   - `npm run start`
+6. Start frontend
+   - `npm run build`
+   - `npm run preview`
+
 ## Scripts
 - Typecheck: `npm run typecheck`
 - Lint: `npm run lint`
@@ -62,9 +77,12 @@ This baseline is admin-only:
   - `/reset-password`
   - `/profile`
   - `/admin/analytics`
-  - `/admin/users`
-  - `/admin/audit-logs`
+  - `/admin/products`
+  - `/admin/orders`
+  - `/admin/events`
+  - `/admin/settings`
 - Backend:
+  - `/health`
   - `/auth/csrf`
   - `/auth/register` (disabled, returns 404)
   - `/auth/login`
@@ -74,3 +92,7 @@ This baseline is admin-only:
   - `/me` (GET/PATCH)
   - `/admin/users`
   - `/admin/audit-logs`
+  - `/admin/analytics/overview`
+  - `/admin/analytics/trends`
+  - `/admin/analytics/activity`
+  - `/track`

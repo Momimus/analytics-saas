@@ -69,3 +69,38 @@ export function requireRole(roles: Role[]) {
     return next();
   };
 }
+
+export async function attachAuthIfPresent(req: AuthRequest, _res: Response, next: NextFunction) {
+  const cookieToken = getCookieValue(req.headers.cookie, AUTH_COOKIE_NAME);
+  const header = req.headers.authorization ?? "";
+  const headerToken = ALLOW_BEARER_AUTH && header.startsWith("Bearer ") ? header.slice(7) : null;
+  const token = cookieToken ?? headerToken;
+
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as AuthPayload;
+    const user = await prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { id: true, role: true },
+    });
+
+    if (user) {
+      const suspensionRows = await prisma.$queryRaw<Array<{ suspendedAt: Date | null }>>`
+        SELECT "suspendedAt"
+        FROM "User"
+        WHERE "id" = ${user.id}
+        LIMIT 1
+      `;
+      if (!suspensionRows[0]?.suspendedAt) {
+        req.user = { id: user.id, role: user.role };
+      }
+    }
+  } catch {
+    // Ignore invalid tokens on optional auth paths.
+  }
+
+  return next();
+}
