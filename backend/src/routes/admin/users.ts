@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { Prisma } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 import prisma from "../../lib/prisma.js";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
+import { requireRole } from "../../middleware/auth.js";
 import type { AuthRequest } from "../../middleware/auth.js";
 import { parsePositiveInt } from "./shared.js";
 
@@ -9,6 +10,7 @@ const router = Router();
 
 router.get(
   "/users",
+  requireRole([Role.SUPER_ADMIN]),
   asyncHandler(async (req: AuthRequest, res) => {
     const page = parsePositiveInt(req.query.page, 1, 1, 10000);
     const pageSize = parsePositiveInt(req.query.pageSize, 20, 1, 100);
@@ -42,7 +44,7 @@ router.get(
         Array<{
           id: string;
           email: string;
-          role: "ADMIN";
+          role: Role;
           fullName: string | null;
           createdAt: Date;
           suspendedAt: Date | null;

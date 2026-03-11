@@ -9,6 +9,12 @@ const prismaMock = {
   user: {
     findUnique: vi.fn(),
   },
+  workspace: {
+    findFirst: vi.fn(),
+  },
+  workspaceMember: {
+    findFirst: vi.fn(),
+  },
   $queryRaw: vi.fn(),
   passwordResetToken: {
     create: vi.fn(),
@@ -27,6 +33,8 @@ describe("backend route behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     prismaMock.$queryRaw.mockResolvedValue([{ suspendedAt: null }]);
+    prismaMock.workspace.findFirst.mockResolvedValue({ id: "ws-default" });
+    prismaMock.workspaceMember.findFirst.mockResolvedValue({ workspaceId: "ws-member-default" });
   });
 
   it("logs in with valid credentials", async () => {
@@ -37,7 +45,7 @@ describe("backend route behavior", () => {
       id: "user-1",
       email: "student@example.com",
       passwordHash,
-      role: "ADMIN",
+      role: "SUPER_ADMIN",
       createdAt: new Date(),
     });
 
@@ -53,6 +61,36 @@ describe("backend route behavior", () => {
     expect(response.status).toBe(200);
     expect(response.body.user.email).toBe("student@example.com");
     expect(response.headers["set-cookie"]).toBeDefined();
+    expect(prismaMock.workspace.findFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it("sets a workspace cookie for workspace members on login", async () => {
+    const password = "secret123";
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: "user-2",
+      email: "member@example.com",
+      passwordHash,
+      role: "WORKSPACE_ADMIN",
+      createdAt: new Date(),
+    });
+    prismaMock.workspaceMember.findFirst.mockResolvedValue({ workspaceId: "ws-member-1" });
+
+    const agent = request.agent(app);
+    const csrfResponse = await agent.get("/auth/csrf");
+
+    const response = await agent
+      .post("/auth/login")
+      .set("Origin", "http://localhost:5173")
+      .set("x-csrf-token", csrfResponse.body.csrfToken)
+      .send({ email: "member@example.com", password });
+
+    expect(response.status).toBe(200);
+    expect(prismaMock.workspaceMember.findFirst).toHaveBeenCalledTimes(1);
+    expect(response.headers["set-cookie"]).toEqual(
+      expect.arrayContaining([expect.stringContaining("ws=ws-member-1")])
+    );
   });
 
   it("rejects mutating request when CSRF token is missing", async () => {

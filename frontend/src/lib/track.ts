@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import analytics from "../sdk";
 
 type TrackOptions = {
   productId?: string;
@@ -6,35 +6,41 @@ type TrackOptions = {
   metadata?: Record<string, unknown>;
 };
 
-let didLogTrackError = false;
 let lastPageViewKey = "";
 let lastPageViewAt = 0;
+let initialized = false;
+
+function ensureInit() {
+  if (initialized) return;
+  analytics.init({
+    endpoint: (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:4000",
+    autoTrackPage: false,
+  });
+  initialized = true;
+}
+
+export function setTrackingWorkspace(workspaceId: string | null) {
+  ensureInit();
+  analytics.setWorkspace(workspaceId ?? undefined);
+}
 
 export async function track(eventName: string, opts?: TrackOptions) {
-  try {
-    await apiFetch("/track", {
-      method: "POST",
-      body: JSON.stringify({
-        eventName,
-        ...(opts?.productId ? { productId: opts.productId } : {}),
-        ...(opts?.orderId ? { orderId: opts.orderId } : {}),
-        ...(opts?.metadata ? { metadata: opts.metadata } : {}),
-      }),
-    });
-  } catch (error) {
-    if (!didLogTrackError) {
-      didLogTrackError = true;
-      console.debug("track failed", error);
-    }
-  }
+  ensureInit();
+  const metadata = {
+    ...(opts?.metadata ?? {}),
+    ...(opts?.productId ? { productId: opts.productId } : {}),
+    ...(opts?.orderId ? { orderId: opts.orderId } : {}),
+  };
+  await analytics.track(eventName, metadata);
 }
 
 export function trackPageView(pathname: string) {
+  ensureInit();
   const now = Date.now();
   if (lastPageViewKey === pathname && now - lastPageViewAt < 1200) {
     return;
   }
   lastPageViewKey = pathname;
   lastPageViewAt = now;
-  void track("page_view", { metadata: { path: pathname } });
+  void analytics.page(undefined, { path: pathname });
 }

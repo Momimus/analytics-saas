@@ -2,6 +2,7 @@ import type { Role } from "@prisma/client";
 import prisma from "../lib/prisma.js";
 
 type AuditLogInput = {
+  workspaceId?: string | null;
   actorId?: string | null;
   actorRole?: Role | string | null;
   action: string;
@@ -19,8 +20,14 @@ export async function writeAuditLog(input: AuditLogInput) {
       return;
     }
 
+    const workspaceId = input.workspaceId ?? null;
+    if (!workspaceId) {
+      return;
+    }
+
     await delegate.create({
       data: {
+        workspaceId,
         actorId: input.actorId ?? null,
         actorRole: input.actorRole ?? null,
         action: input.action,

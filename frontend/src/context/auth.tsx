@@ -4,7 +4,7 @@ import { apiFetch } from "../lib/api";
 export type User = {
   id: string;
   email: string;
-  role: "ADMIN";
+  role: "SUPER_ADMIN" | "WORKSPACE_ADMIN" | "WORKSPACE_VIEWER";
   createdAt?: string;
   fullName?: string | null;
   phone?: string | null;
@@ -12,6 +12,10 @@ export type User = {
   phoneE164?: string | null;
   address?: string | null;
 };
+
+export function canManageWorkspace(user: User | null) {
+  return user?.role === "SUPER_ADMIN" || user?.role === "WORKSPACE_ADMIN";
+}
 
 type AuthState = {
   user: User | null;

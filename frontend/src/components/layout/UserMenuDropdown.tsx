@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, UserCircle2 } from "lucide-react";
 import Badge from "../ui/Badge";
 
-type Role = "ADMIN";
+type Role = "SUPER_ADMIN" | "WORKSPACE_ADMIN" | "WORKSPACE_VIEWER";
 
 type UserMenuDropdownProps = {
   role: Role;
@@ -49,11 +49,7 @@ export default function UserMenuDropdown({
   }, [open]);
 
   const items: MenuItem[] = [
-    ...(role === "ADMIN"
-      ? [
-          { key: "profile", label: "Profile", path: "/profile" } satisfies MenuItem,
-        ]
-      : []),
+    { key: "profile", label: "Profile", path: "/profile" } satisfies MenuItem,
     { key: "logout", label: "Logout", action: onLogout },
   ];
 

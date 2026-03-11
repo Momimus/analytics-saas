@@ -35,7 +35,7 @@ export default function LoginPage() {
             if (loading) return;
             setLoading(true);
             try {
-              await apiFetch<{ user: { id: string; email: string; role: "ADMIN" } }>("/auth/login", {
+              await apiFetch<{ user: { id: string; email: string; role: "SUPER_ADMIN" | "WORKSPACE_ADMIN" | "WORKSPACE_VIEWER" } }>("/auth/login", {
                 method: "POST",
                 body: JSON.stringify({ email, password }),
               });
@@ -110,6 +110,9 @@ export default function LoginPage() {
         <div className="mt-4 grid gap-2 text-center text-sm text-[var(--text-muted)]">
           <Link className="text-[var(--accent)] hover:underline" to="/forgot-password">
             Forgot password?
+          </Link>
+          <Link className="text-[var(--accent)] hover:underline" to="/register">
+            Create workspace
           </Link>
         </div>
       </GlassCard>

@@ -24,6 +24,7 @@ import Input from "../components/Input";
 import { apiFetch } from "../lib/api";
 import { track } from "../lib/track";
 import type { ApiError } from "../lib/api";
+import { canManageWorkspace, useAuth } from "../context/auth";
 
 type CreateOrderResponse = {
   order: {
@@ -78,6 +79,10 @@ function statusTone(status: string): "success" | "warning" | "neutral" {
 }
 
 export default function AdminOrdersPage() {
+  const { user } = useAuth();
+  const canManageOrders = canManageWorkspace(user);
+  const actionButtonClass =
+    "inline-flex h-8 items-center justify-center rounded border border-[color:var(--ui-border-soft)] px-2.5 py-0 text-xs transition hover:bg-[color:var(--surface-alt)] disabled:cursor-not-allowed disabled:opacity-50";
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
 
@@ -289,6 +294,7 @@ export default function AdminOrdersPage() {
       { value: "completed", label: "completed" },
       { value: "pending", label: "pending" },
       { value: "refunded", label: "refunded" },
+      { value: "canceled", label: "canceled" },
     ],
     []
   );
@@ -310,20 +316,24 @@ export default function AdminOrdersPage() {
                   className="h-10 w-64 rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-9 text-sm text-[var(--ui-text-primary)] shadow-[var(--ui-shadow-sm)] outline-none transition focus:border-[var(--ui-accent)] focus:ring-2 focus:ring-[var(--ui-accent-soft)]"
                 />
               </label>
-              <Button
-                type="button"
-                onClick={() => {
-                  setError(null);
-                  setProductFieldError(null);
-                  setSelectedProductId("");
-                  setProductQuery("");
-                  setAmount("");
-                  setStatus("completed");
-                  setIsCreateOpen(true);
-                }}
-              >
-                Create order
-              </Button>
+              {canManageOrders ? (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setProductFieldError(null);
+                    setSelectedProductId("");
+                    setProductQuery("");
+                    setAmount("");
+                    setStatus("completed");
+                    setIsCreateOpen(true);
+                  }}
+                >
+                  Create order
+                </Button>
+              ) : (
+                <span className="text-sm text-[var(--ui-text-muted)]">Read-only access</span>
+              )}
             </div>
           }
           compact
@@ -340,7 +350,7 @@ export default function AdminOrdersPage() {
             onRetry={() => setRefreshKey((prev) => prev + 1)}
             hasRows={rows.length > 0}
             emptyMessage={debouncedSearch ? "No orders match your search." : "No orders yet."}
-            colCount={7}
+            colCount={canManageOrders ? 7 : 6}
             stickyHeader
             zebraRows
             density="comfortable"
@@ -353,7 +363,7 @@ export default function AdminOrdersPage() {
                 <th className={adminTableHeadCellClass}>Amount</th>
                 <th className={adminTableHeadCellClass}>Status</th>
                 <th className={adminTableHeadCellClass}>Events</th>
-                <th className={adminTableHeadCellClass}>Actions</th>
+                {canManageOrders ? <th className={adminTableHeadCellClass}>Actions</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -371,36 +381,38 @@ export default function AdminOrdersPage() {
                     <Badge tone={statusTone(row.status)}>{row.status}</Badge>
                   </td>
                   <td className={`${adminTableCellClass} w-[80px] tabular-nums`}>{row.events}</td>
-                  <td className={`${adminTableCellClass} w-[160px]`}>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        disabled={row.status.toLowerCase() === "refunded"}
-                        onClick={() => {
-                          const target = orders.find((order) => order.id === row.id) ?? null;
-                          setStatusError(null);
-                          setStatusAction("refunded");
-                          setStatusTarget(target);
-                        }}
-                        className="rounded border border-[color:var(--ui-border-soft)] px-2 py-1 text-xs text-[var(--warning)] transition hover:bg-[color:var(--surface-alt)] disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Refund
-                      </button>
-                      <button
-                        type="button"
-                        disabled={row.status.toLowerCase() === "canceled"}
-                        onClick={() => {
-                          const target = orders.find((order) => order.id === row.id) ?? null;
-                          setStatusError(null);
-                          setStatusAction("canceled");
-                          setStatusTarget(target);
-                        }}
-                        className="rounded border border-[color:var(--ui-border-soft)] px-2 py-1 text-xs text-[var(--danger)] transition hover:bg-[color:var(--surface-alt)] disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </td>
+                  {canManageOrders ? (
+                    <td className={`${adminTableCellClass} w-[160px]`}>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={row.status.toLowerCase() === "refunded"}
+                          onClick={() => {
+                            const target = orders.find((order) => order.id === row.id) ?? null;
+                            setStatusError(null);
+                            setStatusAction("refunded");
+                            setStatusTarget(target);
+                          }}
+                          className={`${actionButtonClass} text-[var(--warning)]`}
+                        >
+                          Refund
+                        </button>
+                        <button
+                          type="button"
+                          disabled={row.status.toLowerCase() === "canceled"}
+                          onClick={() => {
+                            const target = orders.find((order) => order.id === row.id) ?? null;
+                            setStatusError(null);
+                            setStatusAction("canceled");
+                            setStatusTarget(target);
+                          }}
+                          className={`${actionButtonClass} text-[var(--danger)]`}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>
@@ -412,7 +424,7 @@ export default function AdminOrdersPage() {
             <Button
               type="button"
               variant="ghost"
-              className="h-10 px-4 py-0 text-sm"
+              className="h-9 px-4 py-0 text-sm"
               onClick={() => {
                 void loadMore();
               }}
@@ -424,7 +436,7 @@ export default function AdminOrdersPage() {
         ) : null}
       </GlassCard>
 
-      <Dialog open={isCreateOpen} onClose={handleCloseCreateOrder} className="max-w-md">
+      <Dialog open={canManageOrders && isCreateOpen} onClose={handleCloseCreateOrder} className="max-w-md">
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-[var(--ui-text-primary)]">Create order</h2>
           <label className="grid gap-1.5 text-sm font-medium text-[var(--ui-text-muted)]">
@@ -477,8 +489,8 @@ export default function AdminOrdersPage() {
               ariaLabel="Select order status"
             />
           </label>
-          {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
-          <div className="flex justify-end gap-2">
+          {error ? <p className="text-xs text-[var(--danger)]">{error}</p> : null}
+          <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="ghost" onClick={handleCloseCreateOrder} disabled={saving}>
               Cancel
             </Button>
@@ -490,7 +502,7 @@ export default function AdminOrdersPage() {
       </Dialog>
 
       <Dialog
-        open={Boolean(statusTarget)}
+        open={canManageOrders && Boolean(statusTarget)}
         onClose={() => {
           if (statusSaving) return;
           setStatusTarget(null);
@@ -504,8 +516,8 @@ export default function AdminOrdersPage() {
           <p className="text-sm text-[var(--ui-text-muted)]">
             This updates the order status to <span className="font-medium">{statusAction}</span>.
           </p>
-          {statusError ? <p className="text-sm text-[var(--danger)]">{statusError}</p> : null}
-          <div className="flex justify-end gap-2">
+          {statusError ? <p className="text-xs text-[var(--danger)]">{statusError}</p> : null}
+          <div className="flex justify-end gap-2 pt-1">
             <Button
               type="button"
               variant="ghost"

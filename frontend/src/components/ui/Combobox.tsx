@@ -50,7 +50,7 @@ export default function Combobox({
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerClassName =
-    "flex h-10 w-full appearance-none items-center justify-between rounded-[var(--ui-radius-lg)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-3 py-2 text-left text-[var(--ui-text-primary)] shadow-[var(--ui-shadow-sm)] transition duration-[var(--ui-motion-fast)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-accent-soft)] disabled:cursor-not-allowed disabled:opacity-60";
+    "flex h-9 w-full appearance-none items-center justify-between gap-2 rounded-[var(--ui-radius-lg)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-3 py-2 text-left text-[var(--ui-text-primary)] shadow-[var(--ui-shadow-sm)] transition duration-[var(--ui-motion-fast)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ui-accent-soft)] disabled:cursor-not-allowed disabled:opacity-60";
 
   const selectedOption = useMemo(
     () => options.find((option) => option.value === value) ?? null,
@@ -105,7 +105,7 @@ export default function Combobox({
 
       {open ? (
         <div
-          className={`absolute left-0 top-[calc(100%+8px)] z-30 w-full rounded-[var(--ui-radius-lg)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] p-2 shadow-[var(--ui-shadow-md)] ${panelClassName ?? ""}`}
+          className={`absolute left-0 top-[calc(100%+8px)] z-30 w-full rounded-[var(--ui-radius-lg)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] p-1.5 shadow-[var(--ui-shadow-md)] ${panelClassName ?? ""}`}
         >
           {searchable ? (
             <input
@@ -142,7 +142,7 @@ export default function Combobox({
                       onChange(option.value);
                       setOpen(false);
                     }}
-                    className={`flex w-full items-center justify-between rounded-[var(--ui-radius-sm)] px-2 py-1.5 text-left text-sm transition ${
+                    className={`flex h-8 w-full items-center justify-between rounded-[var(--ui-radius-sm)] px-2.5 py-0 text-left text-sm transition ${
                       option.disabled
                         ? "cursor-not-allowed opacity-60"
                         : selected

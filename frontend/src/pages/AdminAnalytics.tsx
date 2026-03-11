@@ -201,25 +201,25 @@ export default function AdminAnalyticsPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Revenue"
-          value={overview ? formatCurrency(overview.revenue) : "—"}
+          value={overview ? formatCurrency(overview.revenue) : "-"}
           hint={overview ? formatSignedPercent(overview.deltas.revenueDeltaPct) : undefined}
           loading={loading}
         />
         <StatCard
           label="Orders"
-          value={overview ? overview.orders.toLocaleString() : "—"}
+          value={overview ? overview.orders.toLocaleString() : "-"}
           hint={overview ? formatSignedPercent(overview.deltas.ordersDeltaPct) : undefined}
           loading={loading}
         />
         <StatCard
           label="Conversion"
-          value={overview ? formatCompactPercent(overview.conversionRate) : "—"}
+          value={overview ? formatCompactPercent(overview.conversionRate) : "-"}
           hint={overview ? formatSignedPoints(overview.deltas.conversionDeltaPts) : undefined}
           loading={loading}
         />
         <StatCard
           label="Active Users"
-          value={overview ? overview.activeUsers.toLocaleString() : "—"}
+          value={overview ? overview.activeUsers.toLocaleString() : "-"}
           hint={overview ? formatSignedPercent(overview.deltas.activeUsersDeltaPct) : undefined}
           loading={loading}
         />
@@ -304,7 +304,7 @@ export default function AdminAnalyticsPage() {
             <Button
               type="button"
               variant="ghost"
-              className="h-10 px-4 py-0 text-sm"
+              className="h-9 px-4 py-0 text-sm"
               onClick={() => {
                 void loadMoreActivity();
               }}
@@ -321,3 +321,4 @@ export default function AdminAnalyticsPage() {
     </AdminPage>
   );
 }
+

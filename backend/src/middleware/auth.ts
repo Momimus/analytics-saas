@@ -64,10 +64,14 @@ export function requireRole(roles: Role[]) {
       return sendError(res, 401, "Unauthorized", "UNAUTHORIZED");
     }
     if (!roles.includes(req.user.role)) {
-      return sendError(res, 403, "Forbidden", "FORBIDDEN");
+      return sendError(res, 403, "Forbidden", "forbidden");
     }
     return next();
   };
+}
+
+export function requireAdminConsoleRole() {
+  return requireRole([Role.SUPER_ADMIN, Role.WORKSPACE_ADMIN, Role.WORKSPACE_VIEWER]);
 }
 
 export async function attachAuthIfPresent(req: AuthRequest, _res: Response, next: NextFunction) {

@@ -35,7 +35,7 @@ export default function RevenueTrendChart({ data }: RevenueTrendChartProps) {
   const tickStep = Math.max(1, Math.ceil(data.length / 8));
 
   return (
-    <div className="relative w-full overflow-hidden rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] p-3">
+    <div className="relative w-full overflow-hidden rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] p-4">
       <svg viewBox={`0 0 ${width} ${height}`} className="h-64 w-full">
         <defs>
           <linearGradient id="rev-fill" x1="0" y1="0" x2="0" y2="1">

@@ -63,17 +63,26 @@ function decimalToNumber(value: Prisma.Decimal) {
 
 async function main() {
   console.log("Seeding analytics dataset...");
+  const workspace = await prisma.workspace.findFirst({
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+  if (!workspace) {
+    throw new Error("No workspace found. Create a workspace before seeding analytics data.");
+  }
+  const workspaceId = workspace.id;
 
   await prisma.$transaction([
-    prisma.analyticsEvent.deleteMany({}),
-    prisma.order.deleteMany({}),
-    prisma.product.deleteMany({}),
+    prisma.analyticsEvent.deleteMany({ where: { workspaceId } }),
+    prisma.order.deleteMany({ where: { workspaceId } }),
+    prisma.product.deleteMany({ where: { workspaceId } }),
   ]);
 
   const createdProducts = await Promise.all(
     PRODUCT_CATALOG.map((product) =>
       prisma.product.create({
         data: {
+          workspaceId,
           name: product.name,
           price: new Prisma.Decimal(product.price),
           isActive: true,
@@ -85,6 +94,7 @@ async function main() {
   const orderTarget = randomInt(560, 820);
   const orderRows: Array<{
     id: string;
+    workspaceId: string;
     productId: string;
     amount: Prisma.Decimal;
     status: string;
@@ -100,6 +110,7 @@ async function main() {
 
     orderRows.push({
       id: `seed-order-${i + 1}`,
+      workspaceId,
       productId: product.id,
       amount: new Prisma.Decimal(amount),
       status: picked.status,
@@ -113,6 +124,7 @@ async function main() {
   const userPool = Array.from({ length: 380 }, (_, idx) => `user_${String(idx + 1).padStart(4, "0")}`);
   const eventRows: Array<{
     id: string;
+    workspaceId: string;
     eventName: string;
     productId: string | null;
     orderId: string | null;
@@ -134,6 +146,7 @@ async function main() {
 
     eventRows.push({
       id: `seed-event-${i + 1}`,
+      workspaceId,
       eventName: event.eventName,
       productId: Math.random() < 0.72 ? product.id : null,
       orderId: event.eventName === "order_created" || Math.random() < 0.28 ? order.id : null,

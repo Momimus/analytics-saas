@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./style.css";
 import { AuthProvider } from "./context/auth";
+import { WorkspaceProvider } from "./context/workspace";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./context/theme";
 
@@ -12,9 +13,11 @@ ReactDOM.createRoot(document.getElementById("app")!).render(
     <ErrorBoundary>
       <ThemeProvider>
         <AuthProvider>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
+          <WorkspaceProvider>
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </WorkspaceProvider>
         </AuthProvider>
       </ThemeProvider>
     </ErrorBoundary>

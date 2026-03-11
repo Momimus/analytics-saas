@@ -9,7 +9,11 @@ export type ErrorCode =
   | "TOO_MANY_REQUESTS"
   | "INTERNAL_ERROR"
   | "product_not_found"
-  | "order_not_found";
+  | "order_not_found"
+  | "workspace_required"
+  | "workspace_not_found"
+  | "not_a_member"
+  | "forbidden";
 
 export type ErrorBody = {
   ok: false;

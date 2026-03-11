@@ -30,7 +30,7 @@ export default function OrdersCategoryChart({ data }: OrdersCategoryChartProps) 
   const tickStep = Math.max(1, Math.ceil(data.length / 8));
 
   return (
-    <div className="relative w-full overflow-hidden rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] p-3">
+    <div className="relative w-full overflow-hidden rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] p-4">
       <svg viewBox={`0 0 ${width} ${height}`} className="h-64 w-full">
         <line x1={paddingX} y1={paddingTop} x2={paddingX} y2={height - paddingBottom} stroke="var(--ui-border-soft)" />
         <line

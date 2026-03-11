@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import LoginPage from "./pages/Login";
+import RegisterPage from "./pages/Register";
 import ProfilePage from "./pages/Profile";
 import ForgotPasswordPage from "./pages/ForgotPassword";
 import ResetPasswordPage from "./pages/ResetPassword";
@@ -36,7 +37,7 @@ function PublicOnlyRoute({ children }: PropsWithChildren) {
 function RoleProtectedRoute({
   children,
   roles,
-}: PropsWithChildren<{ roles: Array<"ADMIN"> }>) {
+}: PropsWithChildren<{ roles: Array<"SUPER_ADMIN" | "WORKSPACE_ADMIN" | "WORKSPACE_VIEWER"> }>) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -67,6 +68,14 @@ export default function App() {
           element={
             <PublicOnlyRoute>
               <LoginPage />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicOnlyRoute>
+              <RegisterPage />
             </PublicOnlyRoute>
           }
         />
@@ -105,7 +114,7 @@ export default function App() {
         <Route
           path="/admin"
           element={
-            <RoleProtectedRoute roles={["ADMIN"]}>
+            <RoleProtectedRoute roles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
               <Navigate to="/admin/analytics" replace />
             </RoleProtectedRoute>
           }
@@ -113,7 +122,7 @@ export default function App() {
         <Route
           path="/admin/analytics"
           element={
-            <RoleProtectedRoute roles={["ADMIN"]}>
+            <RoleProtectedRoute roles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
               <AdminAnalyticsPage />
             </RoleProtectedRoute>
           }
@@ -121,7 +130,7 @@ export default function App() {
         <Route
           path="/admin/products"
           element={
-            <RoleProtectedRoute roles={["ADMIN"]}>
+            <RoleProtectedRoute roles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
               <AdminProductsPage />
             </RoleProtectedRoute>
           }
@@ -129,7 +138,7 @@ export default function App() {
         <Route
           path="/admin/orders"
           element={
-            <RoleProtectedRoute roles={["ADMIN"]}>
+            <RoleProtectedRoute roles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
               <AdminOrdersPage />
             </RoleProtectedRoute>
           }
@@ -137,7 +146,7 @@ export default function App() {
         <Route
           path="/admin/events"
           element={
-            <RoleProtectedRoute roles={["ADMIN"]}>
+            <RoleProtectedRoute roles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
               <AdminEventsPage />
             </RoleProtectedRoute>
           }
@@ -145,7 +154,7 @@ export default function App() {
         <Route
           path="/admin/settings"
           element={
-            <RoleProtectedRoute roles={["ADMIN"]}>
+            <RoleProtectedRoute roles={["SUPER_ADMIN", "WORKSPACE_ADMIN"]}>
               <AdminSettingsPage />
             </RoleProtectedRoute>
           }

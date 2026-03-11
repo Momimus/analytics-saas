@@ -2,10 +2,11 @@ import type { PropsWithChildren, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, ChevronsLeft, ChevronsRight, Cog, LayoutDashboard, Package, Search, ShoppingCart, Users } from "lucide-react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { useAuth } from "../context/auth";
+import { canManageWorkspace, useAuth } from "../context/auth";
+import { useWorkspace } from "../context/workspace";
 import AppHeader from "./layout/AppHeader";
 import Select from "./ui/Select";
-import { track, trackPageView } from "../lib/track";
+import { setTrackingWorkspace, track, trackPageView } from "../lib/track";
 import { ALLOWED_RANGES, normalizeRange } from "../api/adminAnalytics";
 
 type NavItem = {
@@ -21,6 +22,7 @@ export default function AppShell({ children }: PropsWithChildren) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, logout } = useAuth();
+  const { workspaces, selectedWorkspaceId, setSelectedWorkspaceId, loading: workspaceLoading } = useWorkspace();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -28,22 +30,31 @@ export default function AppShell({ children }: PropsWithChildren) {
   });
 
   const isLoggedIn = Boolean(user);
-  const isAdmin = user?.role === "ADMIN";
+  const isAdmin = Boolean(
+    user && ["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"].includes(user.role)
+  );
+  const canManageCurrentWorkspace = canManageWorkspace(user);
+  const selectedWorkspace = selectedWorkspaceId
+    ? workspaces.find((workspace) => workspace.id === selectedWorkspaceId) ?? null
+    : null;
   const isAnalyticsRoute = location.pathname.startsWith("/admin/analytics");
 
   const navItems = useMemo<NavItem[]>(() => {
     if (isAdmin) {
-      return [
+      const items: NavItem[] = [
         { to: "/admin/analytics", label: "Analytics", icon: <LayoutDashboard className="h-4 w-4" /> },
         { to: "/admin/products", label: "Products", icon: <Package className="h-4 w-4" /> },
         { to: "/admin/orders", label: "Orders", icon: <ShoppingCart className="h-4 w-4" /> },
         { to: "/admin/events", label: "Events", icon: <Activity className="h-4 w-4" /> },
-        { to: "/admin/settings", label: "Settings", icon: <Cog className="h-4 w-4" /> },
       ];
+      if (canManageCurrentWorkspace) {
+        items.push({ to: "/admin/settings", label: "Settings", icon: <Cog className="h-4 w-4" /> });
+      }
+      return items;
     }
 
     return [{ to: "/login", label: "Login", icon: <LayoutDashboard className="h-4 w-4" /> }];
-  }, [isAdmin]);
+  }, [canManageCurrentWorkspace, isAdmin]);
 
   const isActivePath = useCallback((path: string) => {
     if (path === "/admin/analytics") {
@@ -126,6 +137,10 @@ export default function AppShell({ children }: PropsWithChildren) {
     trackPageView(location.pathname);
   }, [location.pathname]);
 
+  useEffect(() => {
+    setTrackingWorkspace(selectedWorkspaceId);
+  }, [selectedWorkspaceId]);
+
   const analyticsHeaderControls = isLoggedIn && isAnalyticsRoute ? (
     <div className="flex items-center gap-2.5">
       <label className="relative hidden md:block">
@@ -150,6 +165,35 @@ export default function AppShell({ children }: PropsWithChildren) {
       </div>
     </div>
   ) : null;
+
+  const workspaceHeaderControl = isLoggedIn && isAdmin ? (
+    <div className="w-56">
+      <Select
+        value={selectedWorkspaceId ?? ""}
+        onChange={(nextWorkspaceId) => {
+          setSelectedWorkspaceId(nextWorkspaceId);
+          if (location.pathname.startsWith("/admin")) {
+            window.location.reload();
+          }
+        }}
+        ariaLabel="Select workspace"
+        items={workspaces.map((workspace) => ({
+          label: workspace.name,
+          value: workspace.id,
+        }))}
+        disabled={workspaces.length === 0}
+      />
+    </div>
+  ) : null;
+
+  const headerControls = (
+    <div className="flex items-center gap-2.5">
+      {workspaceHeaderControl}
+      {analyticsHeaderControls}
+    </div>
+  );
+
+  const shouldBlockAdminContent = isLoggedIn && isAdmin && !selectedWorkspaceId;
 
   const desktopSidebar = isLoggedIn && isAdmin ? (
     <aside
@@ -259,9 +303,10 @@ export default function AppShell({ children }: PropsWithChildren) {
             isLoggedIn={isLoggedIn}
             role={user?.role ?? null}
             userEmail={user?.email ?? null}
+            workspaceName={selectedWorkspace?.name ?? null}
             pageTitle={pageTitle}
             navItems={[]}
-            headerControls={analyticsHeaderControls}
+            headerControls={headerControls}
             onNavigate={(path) => navigate(path)}
             onToggleMobileMenu={() => setIsSidebarOpen((prev) => !prev)}
             onLogout={async () => {
@@ -271,7 +316,17 @@ export default function AppShell({ children }: PropsWithChildren) {
             }}
           />
 
-          <main className="page-fade scroll-gutter-stable flex-1 px-4 py-5 sm:px-6 lg:px-8">{children}</main>
+          <main className="page-fade scroll-gutter-stable flex-1 px-4 py-5 sm:px-6 lg:px-8">
+            {shouldBlockAdminContent ? (
+              <div className="rounded-[var(--ui-radius-lg)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-5 py-8 text-sm text-[var(--ui-text-muted)]">
+                {workspaceLoading
+                  ? "Loading workspaces..."
+                  : "Select a workspace to load tenant data."}
+              </div>
+            ) : (
+              children
+            )}
+          </main>
         </div>
       </div>
 

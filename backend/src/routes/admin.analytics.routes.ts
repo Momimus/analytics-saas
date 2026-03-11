@@ -1,9 +1,12 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, WorkspaceMemberRole } from "@prisma/client";
 import { Router } from "express";
 import prisma from "../lib/prisma.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { createRateLimiter } from "../middleware/rateLimit.js";
+import { requireWorkspace, requireWorkspaceRole } from "../middleware/workspace.js";
+import { writeAuditLog } from "../services/auditService.js";
 import { HttpError } from "../utils/httpError.js";
+import { getRequestMeta } from "../utils/requestMeta.js";
 import { validateEventName, validateMetadata, validateOptionalId } from "../validation/analyticsValidation.js";
 
 const router = Router();
@@ -21,7 +24,7 @@ type SupportedRange = "7d" | "30d";
 type SupportedMetric = "revenue" | "orders" | "users";
 type ProductDelegate = {
   create: (args: {
-    data: { name: string; price: Prisma.Decimal; isActive: boolean };
+    data: { workspaceId: string; name: string; price: Prisma.Decimal; isActive: boolean };
     select: {
       id: true;
       name: true;
@@ -30,11 +33,14 @@ type ProductDelegate = {
       createdAt: true;
     };
   }) => Promise<{ id: string; name: string; price: Prisma.Decimal; isActive: boolean; createdAt: Date }>;
-  findUnique: (args: { where: { id: string }; select: { id: true } }) => Promise<{ id: string } | null>;
+  findUnique: (args: {
+    where: { id: string };
+    select: { id: true; workspaceId?: true };
+  }) => Promise<{ id: string; workspaceId?: string } | null>;
 };
 type OrderDelegate = {
   create: (args: {
-    data: { productId: string; amount: Prisma.Decimal; status: string };
+    data: { workspaceId: string; productId: string; amount: Prisma.Decimal; status: string };
     select: {
       id: true;
       productId: true;
@@ -43,7 +49,10 @@ type OrderDelegate = {
       createdAt: true;
     };
   }) => Promise<{ id: string; productId: string; amount: Prisma.Decimal; status: string; createdAt: Date }>;
-  findUnique: (args: { where: { id: string }; select: { id: true } }) => Promise<{ id: string } | null>;
+  findUnique: (args: {
+    where: { id: string };
+    select: { id: true; workspaceId?: true };
+  }) => Promise<{ id: string; workspaceId?: string } | null>;
 };
 type AnalyticsEventDelegate = {
   findMany: (args: {
@@ -68,6 +77,7 @@ type AnalyticsEventDelegate = {
   }>>;
   create: (args: {
     data: {
+      workspaceId: string;
       eventName: string;
       productId: string | null;
       orderId: string | null;
@@ -223,10 +233,13 @@ function decodeActivityCursor(raw: string): { createdAt: Date; id: string } {
 }
 
 router.use("/analytics", analyticsLimiter);
+router.use(requireWorkspace);
 
 router.get(
   "/products",
+  requireWorkspaceRole(WorkspaceMemberRole.WORKSPACE_VIEWER),
   asyncHandler(async (req, res) => {
+    const workspaceId = req.workspaceId as string;
     const limitRaw = typeof req.query.limit === "string" ? Number(req.query.limit) : 25;
     const limit = Number.isInteger(limitRaw) ? Math.min(100, Math.max(1, limitRaw)) : 25;
     const qRaw = typeof req.query.q === "string" ? req.query.q.trim() : "";
@@ -239,9 +252,9 @@ router.get(
     if (cursorId) {
       const cursorRow = await prisma.product.findUnique({
         where: { id: cursorId },
-        select: { id: true, createdAt: true, isActive: true },
+        select: { id: true, createdAt: true, isActive: true, workspaceId: true },
       });
-      if (!cursorRow) {
+      if (!cursorRow || cursorRow.workspaceId !== workspaceId) {
         throw new HttpError(400, "Invalid cursor");
       }
       if (!showArchived && !cursorRow.isActive) {
@@ -264,6 +277,7 @@ router.get(
       : undefined;
 
     const andFilters: Prisma.ProductWhereInput[] = [];
+    andFilters.push({ workspaceId });
     if (!showArchived) andFilters.push({ isActive: true });
     if (searchFilter) andFilters.push(searchFilter);
     if (cursorFilter) andFilters.push(cursorFilter);
@@ -304,7 +318,9 @@ router.get(
 
 router.get(
   "/orders",
+  requireWorkspaceRole(WorkspaceMemberRole.WORKSPACE_VIEWER),
   asyncHandler(async (req, res) => {
+    const workspaceId = req.workspaceId as string;
     const limitRaw = typeof req.query.limit === "string" ? Number(req.query.limit) : 25;
     const limit = Number.isInteger(limitRaw) ? Math.min(100, Math.max(1, limitRaw)) : 25;
     const qRaw = typeof req.query.q === "string" ? req.query.q.trim() : "";
@@ -315,9 +331,9 @@ router.get(
     if (cursorId) {
       const cursorRow = await prisma.order.findUnique({
         where: { id: cursorId },
-        select: { id: true, createdAt: true },
+        select: { id: true, createdAt: true, workspaceId: true },
       });
-      if (!cursorRow) {
+      if (!cursorRow || cursorRow.workspaceId !== workspaceId) {
         throw new HttpError(400, "Invalid cursor");
       }
       cursorFilter = {
@@ -341,6 +357,7 @@ router.get(
       : undefined;
 
     const andFilters: Prisma.OrderWhereInput[] = [];
+    andFilters.push({ workspaceId });
     if (searchFilter) andFilters.push(searchFilter);
     if (cursorFilter) andFilters.push(cursorFilter);
     const where: Prisma.OrderWhereInput = andFilters.length ? { AND: andFilters } : {};
@@ -391,9 +408,11 @@ router.get(
 
 router.get(
   "/analytics/overview",
+  requireWorkspaceRole(WorkspaceMemberRole.WORKSPACE_VIEWER),
   asyncHandler(async (req, res) => {
+    const workspaceId = req.workspaceId as string;
     const range = parseRange(req.query.range);
-    const cacheKey = `overview:${range}`;
+    const cacheKey = `overview:${workspaceId}:${range}`;
     const cached = getCachedPayload<{
       revenue: number;
       orders: number;
@@ -429,19 +448,22 @@ router.get(
           SELECT COALESCE(SUM(o."amount"), 0)::numeric AS total
           FROM "Order" o
           WHERE o."status" = 'completed'
+            AND o."workspaceId" = ${workspaceId}
             AND o."createdAt" >= ${start}
             AND o."createdAt" < ${end}
         `),
         prisma.$queryRaw<Array<{ total: bigint }>>(Prisma.sql`
           SELECT COUNT(*)::bigint AS total
           FROM "Order" o
-          WHERE o."createdAt" >= ${start}
+          WHERE o."workspaceId" = ${workspaceId}
+            AND o."createdAt" >= ${start}
             AND o."createdAt" < ${end}
         `),
         prisma.$queryRaw<Array<{ total: bigint }>>(Prisma.sql`
           SELECT COUNT(DISTINCT ae."userId")::bigint AS total
           FROM "AnalyticsEvent" ae
           WHERE ae."eventName" = 'page_view'
+            AND ae."workspaceId" = ${workspaceId}
             AND ae."userId" IS NOT NULL
             AND ae."createdAt" >= ${start}
             AND ae."createdAt" < ${end}
@@ -494,10 +516,12 @@ router.get(
 
 router.get(
   "/analytics/trends",
+  requireWorkspaceRole(WorkspaceMemberRole.WORKSPACE_VIEWER),
   asyncHandler(async (req, res) => {
+    const workspaceId = req.workspaceId as string;
     const range = parseRange(req.query.range);
     const metric = parseMetric(req.query.metric);
-    const cacheKey = `trends:${metric}:${range}`;
+    const cacheKey = `trends:${workspaceId}:${metric}:${range}`;
     const cached = getCachedPayload<{ labels: string[]; data: number[] }>(cacheKey);
     if (cached) {
       return res.json(cached);
@@ -515,6 +539,7 @@ router.get(
         SELECT DATE_TRUNC('day', o."createdAt")::date AS day, COALESCE(SUM(o."amount"), 0)::numeric AS value
         FROM "Order" o
         WHERE o."status" = 'completed'
+          AND o."workspaceId" = ${workspaceId}
           AND o."createdAt" >= ${start}
         GROUP BY day
         ORDER BY day ASC
@@ -523,7 +548,8 @@ router.get(
       rows = await prisma.$queryRaw<Array<{ day: Date; value: bigint }>>(Prisma.sql`
         SELECT DATE_TRUNC('day', o."createdAt")::date AS day, COUNT(*)::bigint AS value
         FROM "Order" o
-        WHERE o."createdAt" >= ${start}
+        WHERE o."workspaceId" = ${workspaceId}
+          AND o."createdAt" >= ${start}
         GROUP BY day
         ORDER BY day ASC
       `);
@@ -531,7 +557,8 @@ router.get(
       rows = await prisma.$queryRaw<Array<{ day: Date; value: bigint }>>(Prisma.sql`
         SELECT DATE_TRUNC('day', ae."createdAt")::date AS day, COUNT(DISTINCT ae."userId")::bigint AS value
         FROM "AnalyticsEvent" ae
-        WHERE ae."userId" IS NOT NULL
+        WHERE ae."workspaceId" = ${workspaceId}
+          AND ae."userId" IS NOT NULL
           AND ae."createdAt" >= ${start}
         GROUP BY day
         ORDER BY day ASC
@@ -559,7 +586,9 @@ router.get(
 
 router.get(
   "/analytics/activity",
+  requireWorkspaceRole(WorkspaceMemberRole.WORKSPACE_VIEWER),
   asyncHandler(async (req, res) => {
+    const workspaceId = req.workspaceId as string;
     const range = parseRange(req.query.range);
     const start = rangeStart(range);
     const limitRaw = typeof req.query.limit === "string" ? Number(req.query.limit) : 50;
@@ -607,6 +636,7 @@ router.get(
       createdAt: Date;
       productId: string | null;
       orderId: string | null;
+      metadata: Prisma.JsonValue | null;
     }>>(Prisma.sql`
       SELECT
         ae."id",
@@ -614,9 +644,11 @@ router.get(
         ae."userId",
         ae."createdAt",
         ae."productId",
-        ae."orderId"
+        ae."orderId",
+        ae."metadata"
       FROM "AnalyticsEvent" ae
       WHERE ae."createdAt" >= ${start}
+        AND ae."workspaceId" = ${workspaceId}
       ${searchSql}
       ${cursorSql}
       ORDER BY ae."createdAt" DESC, ae."id" DESC
@@ -668,7 +700,9 @@ router.get(
 
 router.delete(
   "/products/:id",
+  requireWorkspaceRole(WorkspaceMemberRole.WORKSPACE_ADMIN),
   asyncHandler(async (req, res) => {
+    const workspaceId = req.workspaceId as string;
     const productId = typeof req.params.id === "string" ? req.params.id.trim() : "";
     if (!productId) {
       throw new HttpError(400, "product id is required");
@@ -676,9 +710,12 @@ router.delete(
 
     const product = await prisma.product.findUnique({
       where: { id: productId },
-      select: { id: true, isActive: true },
+      select: { id: true, isActive: true, workspaceId: true },
     });
     if (!product) {
+      throw new HttpError(404, "Product not found", "product_not_found");
+    }
+    if (product.workspaceId !== workspaceId) {
       throw new HttpError(404, "Product not found", "product_not_found");
     }
 
@@ -689,13 +726,30 @@ router.delete(
       });
     }
 
+    const { ip, userAgent } = getRequestMeta(req);
+    await writeAuditLog({
+      workspaceId,
+      actorId: req.user?.id ?? null,
+      actorRole: req.user?.role ?? null,
+      action: "product.archived",
+      entityType: "product",
+      entityId: product.id,
+      metadata: {
+        wasActive: product.isActive,
+      },
+      ip,
+      userAgent,
+    });
+
     return res.json({ ok: true });
   })
 );
 
 router.patch(
   "/orders/:id/status",
+  requireWorkspaceRole(WorkspaceMemberRole.WORKSPACE_ADMIN),
   asyncHandler(async (req, res) => {
+    const workspaceId = req.workspaceId as string;
     const orderId = typeof req.params.id === "string" ? req.params.id.trim() : "";
     const statusRaw = typeof req.body?.status === "string" ? req.body.status.trim().toLowerCase() : "";
     const allowedStatuses = ["completed", "pending", "refunded", "canceled"];
@@ -709,9 +763,12 @@ router.patch(
 
     const existing = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { id: true },
+      select: { id: true, workspaceId: true },
     });
     if (!existing) {
+      throw new HttpError(404, "Order not found", "order_not_found");
+    }
+    if (existing.workspaceId !== workspaceId) {
       throw new HttpError(404, "Order not found", "order_not_found");
     }
 
@@ -727,6 +784,21 @@ router.patch(
       },
     });
 
+    const { ip, userAgent } = getRequestMeta(req);
+    await writeAuditLog({
+      workspaceId,
+      actorId: req.user?.id ?? null,
+      actorRole: req.user?.role ?? null,
+      action: "order.status_updated",
+      entityType: "order",
+      entityId: order.id,
+      metadata: {
+        status: order.status,
+      },
+      ip,
+      userAgent,
+    });
+
     return res.json({
       order: {
         ...order,
@@ -738,7 +810,9 @@ router.patch(
 
 router.post(
   "/products",
+  requireWorkspaceRole(WorkspaceMemberRole.WORKSPACE_ADMIN),
   asyncHandler(async (req, res) => {
+    const workspaceId = req.workspaceId as string;
     const { product: productDelegate } = getAnalyticsDelegates();
     assertNoUnknownFields((req.body ?? {}) as Record<string, unknown>, ["name", "price", "isActive"]);
     const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
@@ -757,6 +831,7 @@ router.post(
 
     const product = await productDelegate.create({
       data: {
+        workspaceId,
         name,
         price: new Prisma.Decimal(priceNum),
         isActive,
@@ -770,6 +845,23 @@ router.post(
       },
     });
 
+    const { ip, userAgent } = getRequestMeta(req);
+    await writeAuditLog({
+      workspaceId,
+      actorId: req.user?.id ?? null,
+      actorRole: req.user?.role ?? null,
+      action: "product.created",
+      entityType: "product",
+      entityId: product.id,
+      metadata: {
+        name: product.name,
+        isActive: product.isActive,
+        price: product.price.toNumber(),
+      },
+      ip,
+      userAgent,
+    });
+
     return res.status(201).json({
       product: {
         ...product,
@@ -781,7 +873,9 @@ router.post(
 
 router.post(
   "/orders",
+  requireWorkspaceRole(WorkspaceMemberRole.WORKSPACE_ADMIN),
   asyncHandler(async (req, res) => {
+    const workspaceId = req.workspaceId as string;
     const { product: productDelegate, order: orderDelegate } = getAnalyticsDelegates();
     assertNoUnknownFields((req.body ?? {}) as Record<string, unknown>, ["productId", "amount", "status"]);
     const productId = typeof req.body?.productId === "string" ? req.body.productId.trim() : "";
@@ -798,14 +892,15 @@ router.post(
 
     const product = await productDelegate.findUnique({
       where: { id: productId },
-      select: { id: true },
+      select: { id: true, workspaceId: true },
     });
-    if (!product) {
+    if (!product || product.workspaceId !== workspaceId) {
       throw new HttpError(404, "Product not found", "product_not_found");
     }
 
     const order = await orderDelegate.create({
       data: {
+        workspaceId,
         productId,
         amount: new Prisma.Decimal(amountNum),
         status,
@@ -819,6 +914,23 @@ router.post(
       },
     });
 
+    const { ip, userAgent } = getRequestMeta(req);
+    await writeAuditLog({
+      workspaceId,
+      actorId: req.user?.id ?? null,
+      actorRole: req.user?.role ?? null,
+      action: "order.created",
+      entityType: "order",
+      entityId: order.id,
+      metadata: {
+        productId: order.productId,
+        status: order.status,
+        amount: order.amount.toNumber(),
+      },
+      ip,
+      userAgent,
+    });
+
     return res.status(201).json({
       order: {
         ...order,
@@ -830,7 +942,9 @@ router.post(
 
 router.post(
   "/events",
+  requireWorkspaceRole(WorkspaceMemberRole.WORKSPACE_ADMIN),
   asyncHandler(async (req, res) => {
+    const workspaceId = req.workspaceId as string;
     const {
       product: productDelegate,
       order: orderDelegate,
@@ -850,20 +964,24 @@ router.post(
     const metadata = validateMetadata(req.body?.metadata);
 
     if (productId) {
-      const product = await productDelegate.findUnique({ where: { id: productId }, select: { id: true } });
-      if (!product) {
+      const product = await productDelegate.findUnique({ where: { id: productId }, select: { id: true, workspaceId: true } });
+      if (!product || product.workspaceId !== workspaceId) {
         throw new HttpError(404, "Product not found", "product_not_found");
       }
     }
     if (orderId) {
-      const order = await orderDelegate.findUnique({ where: { id: orderId }, select: { id: true } });
-      if (!order) {
+      const order = await orderDelegate.findUnique({
+        where: { id: orderId },
+        select: { id: true, workspaceId: true },
+      });
+      if (!order || order.workspaceId !== workspaceId) {
         throw new HttpError(404, "Order not found", "order_not_found");
       }
     }
 
     const event = await analyticsEvent.create({
       data: {
+        workspaceId,
         eventName,
         productId: productId || null,
         orderId: orderId || null,
@@ -878,6 +996,24 @@ router.post(
         userId: true,
         createdAt: true,
       },
+    });
+
+    const { ip, userAgent } = getRequestMeta(req);
+    await writeAuditLog({
+      workspaceId,
+      actorId: req.user?.id ?? null,
+      actorRole: req.user?.role ?? null,
+      action: "analytics_event.created",
+      entityType: "analytics_event",
+      entityId: event.id,
+      metadata: {
+        eventName: event.eventName,
+        productId: event.productId,
+        orderId: event.orderId,
+        userId: event.userId,
+      },
+      ip,
+      userAgent,
     });
 
     return res.status(201).json({ event });

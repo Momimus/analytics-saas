@@ -11,63 +11,110 @@ datasource db {
 }
 
 enum Role {
-  ADMIN
+  SUPER_ADMIN
+  WORKSPACE_ADMIN
+  WORKSPACE_VIEWER
+}
+
+enum WorkspaceMemberRole {
+  WORKSPACE_ADMIN
+  WORKSPACE_VIEWER
 }
 
 model User {
-  id           String               @id @default(cuid())
-  email        String               @unique
-  passwordHash String
-  role         Role                 @default(ADMIN)
-  suspendedAt  DateTime?
-  fullName     String?
-  phone        String?
-  phoneCountry String?
-  phoneE164    String?
-  address      String?
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
-  resetTokens  PasswordResetToken[]
+  id                String              @id @default(cuid())
+  email             String              @unique
+  passwordHash      String
+  role              Role                @default(WORKSPACE_ADMIN)
+  suspendedAt       DateTime?
+  fullName          String?
+  phone             String?
+  phoneCountry      String?
+  phoneE164         String?
+  address           String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  resetTokens       PasswordResetToken[]
+  ownedWorkspaces   Workspace[]         @relation("WorkspaceCreatedBy")
+  workspaceMembers  WorkspaceMember[]
+}
+
+model Workspace {
+  id              String            @id @default(cuid())
+  name            String
+  slug            String            @unique
+  createdByUserId String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  createdByUser   User              @relation("WorkspaceCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  members         WorkspaceMember[]
+  products        Product[]
+  orders          Order[]
+  events          AnalyticsEvent[]
+  auditLogs       AuditLog[]
+}
+
+model WorkspaceMember {
+  id          String              @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceMemberRole @default(WORKSPACE_VIEWER)
+  createdAt   DateTime            @default(now())
+  workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
 }
 
 model Product {
-  id        String           @id @default(cuid())
-  name      String
-  price     Decimal          @db.Decimal(12, 2)
-  isActive  Boolean          @default(true)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-  orders    Order[]
-  events    AnalyticsEvent[]
+  id          String           @id @default(cuid())
+  workspaceId String
+  name        String
+  price       Decimal          @db.Decimal(12, 2)
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  orders      Order[]
+  events      AnalyticsEvent[]
 
+  @@index([workspaceId, createdAt, id])
   @@index([createdAt])
 }
 
 model Order {
-  id        String           @id @default(cuid())
-  productId String
-  amount    Decimal          @db.Decimal(12, 2)
-  status    String
-  createdAt DateTime         @default(now())
-  product   Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
-  events    AnalyticsEvent[]
+  id          String           @id @default(cuid())
+  workspaceId String
+  productId   String
+  amount      Decimal          @db.Decimal(12, 2)
+  status      String
+  createdAt   DateTime         @default(now())
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  product     Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
+  events      AnalyticsEvent[]
 
+  @@index([workspaceId, createdAt, id])
   @@index([createdAt])
   @@index([productId])
   @@index([status])
 }
 
 model AnalyticsEvent {
-  id        String   @id @default(cuid())
-  eventName String
-  productId String?
-  orderId   String?
-  userId    String?
-  metadata  Json?
-  createdAt DateTime @default(now())
-  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
-  order     Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  id          String     @id @default(cuid())
+  workspaceId String
+  eventName   String
+  productId   String?
+  orderId     String?
+  userId      String?
+  metadata    Json?
+  createdAt   DateTime   @default(now())
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  product     Product?   @relation(fields: [productId], references: [id], onDelete: SetNull)
+  order       Order?     @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
+  @@index([workspaceId, createdAt, id])
+  @@index([workspaceId, eventName, createdAt])
   @@index([createdAt])
   @@index([eventName])
   @@index([productId])
@@ -89,17 +136,20 @@ model PasswordResetToken {
 }
 
 model AuditLog {
-  id         String   @id @default(cuid())
-  actorId    String?
-  actorRole  String?
-  action     String
-  entityType String
-  entityId   String?
-  metadata   Json?
-  ip         String?
-  userAgent  String?
-  createdAt  DateTime @default(now())
+  id          String    @id @default(cuid())
+  workspaceId String
+  actorId     String?
+  actorRole   String?
+  action      String
+  entityType  String
+  entityId    String?
+  metadata    Json?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
 
+  @@index([workspaceId, createdAt, id])
   @@index([createdAt])
   @@index([actorId])
   @@index([action])

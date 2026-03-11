@@ -1,98 +1,79 @@
-# Analytics SaaS Baseline
+# Analytics SaaS (Multi-tenant MVP)
 
-Production-ready SaaS foundation built with React + Vite + TypeScript (frontend) and Express + TypeScript + Prisma + PostgreSQL (backend).
-
-This baseline is admin-only:
-- Public registration is disabled.
-- Only `ADMIN` role is supported.
-- Seed creates or updates a single admin account from env vars.
+Production-ready analytics SaaS baseline with workspace isolation.
 
 ## Stack
-- Frontend: React 19, TypeScript, Vite, Tailwind CSS
-- Backend: Node.js, Express, TypeScript
-- Database: PostgreSQL + Prisma ORM
+- Frontend: React 19 + TypeScript + Vite + Tailwind
+- Backend: Node.js + Express + TypeScript
+- Database: PostgreSQL + Prisma
 
-## Included Foundation
-- Cookie auth + `/auth/*` endpoints
-- RBAC middleware
+## Multi-tenant capabilities
+- Workspace-scoped data for `Product`, `Order`, `AnalyticsEvent`, and `AuditLog`
+- Roles:
+  - `SUPER_ADMIN`
+  - `WORKSPACE_ADMIN`
+  - `WORKSPACE_VIEWER`
+- Workspace membership checks on all admin analytics/product/order/events APIs
+- Workspace context from `x-workspace-id` header (preferred) or `ws` cookie
+- Workspace switcher in app header (persisted in `localStorage`)
+- Signup creates a new workspace automatically for the new user
+
+## Core backend security/foundation
+- Cookie JWT auth
 - CSRF protection
-- Error contract (`{ error, message, fieldErrors? }`)
-- Rate limiting middleware
-- Admin shell and generic admin pages
-- Shared UI primitives and API client
+- RBAC + workspace membership middleware
+- Rate limiting (`/auth/*`, `/track`, `/admin/analytics/*`)
+- Consistent error contract: `{ ok:false, error, message, fieldErrors? }`
 
 ## Setup
-1. Install dependencies:
+1. Install dependencies
    - `npm install`
-2. Copy env files:
-   - `.env.example` to `.env`
-   - `backend/.env.example` to `backend/.env`
-   - `frontend/.env.example` to `frontend/.env`
-3. Configure admin seed env in `backend/.env`:
-   - `ADMIN_EMAIL=admin@example.com`
-   - `ADMIN_PASSWORD=change-me-now`
-   - `ADMIN_NAME=Platform Admin`
-4. Start PostgreSQL (optional via Docker):
-   - `docker compose up -d`
-5. Apply Prisma migrations to a fresh database:
+2. Configure env files
+   - `backend/.env.example` -> `backend/.env`
+   - `frontend/.env.example` -> `frontend/.env`
+3. Apply migrations
    - `npm --workspace backend run prisma -- migrate deploy`
-6. Seed the admin user:
+4. Generate Prisma client
+   - `npm --workspace backend run prisma -- generate`
+5. Seed super admin
    - `npm --workspace backend run db:seed`
+6. (Optional) Seed analytics sample data
+   - `npm --workspace backend run seed:analytics`
 
 ## Run
-- Full app (backend + frontend): `npm run dev`
+- Full stack: `npm run dev`
 - Backend only: `npm --workspace backend run dev`
 - Frontend only: `npm --workspace frontend run dev`
 
-## Production deployment checklist
-1. Install dependencies
-   - `npm install`
-2. Generate Prisma client
-   - `npx prisma generate`
-3. Apply migrations
-   - `npx prisma migrate deploy`
-4. Seed demo data (optional)
-   - `npm run seed:analytics`
-5. Start backend
-   - `npm run start`
-6. Start frontend
+## Workspace-scoped API routes
+- `GET /me/workspaces`
+- `POST /workspaces`
+- `POST /workspaces/:id/members`
+- `GET /admin/products`
+- `POST /admin/products`
+- `DELETE /admin/products/:id`
+- `GET /admin/orders`
+- `POST /admin/orders`
+- `PATCH /admin/orders/:id/status`
+- `GET /admin/analytics/overview`
+- `GET /admin/analytics/trends`
+- `GET /admin/analytics/activity`
+- `POST /admin/events`
+- `POST /track`
+
+## Auth routes
+- `POST /auth/register` (enabled; creates user + workspace)
+- `POST /auth/login`
+- `POST /auth/logout`
+- `GET /auth/csrf`
+- `POST /auth/forgot-password`
+- `POST /auth/reset-password`
+
+## Production checklist
+1. `npm install`
+2. `npm --workspace backend run prisma -- generate`
+3. `npm --workspace backend run prisma -- migrate deploy`
+4. `npm --workspace backend run db:seed`
+5. Build frontend/backend
    - `npm run build`
-   - `npm run preview`
-
-## Scripts
-- Typecheck: `npm run typecheck`
-- Lint: `npm run lint`
-- Test: `npm run test`
-- Build: `npm run build`
-- Full check: `npm run check`
-
-## Default URLs
-- Frontend: `http://localhost:5173`
-- Backend API: `http://localhost:4000`
-
-## Core Routes
-- Frontend:
-  - `/login`
-  - `/forgot-password`
-  - `/reset-password`
-  - `/profile`
-  - `/admin/analytics`
-  - `/admin/products`
-  - `/admin/orders`
-  - `/admin/events`
-  - `/admin/settings`
-- Backend:
-  - `/health`
-  - `/auth/csrf`
-  - `/auth/register` (disabled, returns 404)
-  - `/auth/login`
-  - `/auth/logout`
-  - `/auth/forgot-password`
-  - `/auth/reset-password`
-  - `/me` (GET/PATCH)
-  - `/admin/users`
-  - `/admin/audit-logs`
-  - `/admin/analytics/overview`
-  - `/admin/analytics/trends`
-  - `/admin/analytics/activity`
-  - `/track`
+6. Start backend/frontend according to your deployment runtime

@@ -6,7 +6,7 @@ import Select from "../ui/Select";
 export const adminTableHeadRowClass = "text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--ui-text-muted)]";
 export const adminTableHeadCellClass = "px-3 py-2.5 text-left";
 export const adminTableRowClass = "border-t border-[color:var(--ui-border-soft)] text-[var(--ui-text-primary)]";
-export const adminTableCellClass = "px-3 py-2.5 align-middle text-sm";
+export const adminTableCellClass = "px-3 py-2.5 align-middle text-sm leading-5";
 
 export type AppliedFilter = {
   key: string;

@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
 import UserMenuDropdown from "./UserMenuDropdown";
 
-type Role = "ADMIN";
+type Role = "SUPER_ADMIN" | "WORKSPACE_ADMIN" | "WORKSPACE_VIEWER";
 
 type NavItem = {
   to: string;
@@ -14,6 +14,7 @@ type AppHeaderProps = {
   isLoggedIn: boolean;
   role: Role | null;
   userEmail?: string | null;
+  workspaceName?: string | null;
   pageTitle: string;
   navItems: NavItem[];
   headerControls?: ReactNode;
@@ -26,6 +27,7 @@ export default function AppHeader({
   isLoggedIn,
   role,
   userEmail,
+  workspaceName,
   pageTitle,
   navItems,
   headerControls,
@@ -40,7 +42,7 @@ export default function AppHeader({
           {isLoggedIn ? (
             <div className="min-w-0">
               <p className="truncate text-xl font-semibold tracking-tight text-[var(--ui-text-primary)]">{pageTitle}</p>
-              <p className="truncate text-xs text-[var(--ui-text-muted)]">Admin Workspace</p>
+              <p className="truncate text-xs text-[var(--ui-text-muted)]">{workspaceName ?? "Workspace"}</p>
             </div>
           ) : (
             <>

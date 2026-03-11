@@ -19,6 +19,7 @@ import Input from "../components/Input";
 import Dialog from "../components/ui/Dialog";
 import GlassCard from "../components/ui/GlassCard";
 import type { ApiError } from "../lib/api";
+import { canManageWorkspace, useAuth } from "../context/auth";
 
 const PAGE_SIZE = 25;
 
@@ -35,7 +36,7 @@ function useDebouncedValue<T>(value: T, delayMs: number) {
 
 function formatDateTime(value: string) {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return "-";
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
@@ -48,6 +49,10 @@ function shortId(value: string) {
 }
 
 export default function AdminProductsPage() {
+  const { user } = useAuth();
+  const canManageProducts = canManageWorkspace(user);
+  const actionButtonClass =
+    "inline-flex h-8 items-center justify-center rounded border border-[color:var(--ui-border-soft)] px-2.5 py-0 text-xs transition hover:bg-[color:var(--surface-alt)] disabled:cursor-not-allowed disabled:opacity-50";
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
   const [showArchived, setShowArchived] = useState(false);
@@ -245,16 +250,20 @@ export default function AdminProductsPage() {
                 />
                 <span>Show archived</span>
               </label>
-              <Button
-                type="button"
-                onClick={() => {
-                  setCreateError(null);
-                  setCreatePrice("1");
-                  setIsCreateOpen(true);
-                }}
-              >
-                Create product
-              </Button>
+              {canManageProducts ? (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setCreateError(null);
+                    setCreatePrice("1");
+                    setIsCreateOpen(true);
+                  }}
+                >
+                  Create product
+                </Button>
+              ) : (
+                <span className="text-sm text-[var(--ui-text-muted)]">Read-only access</span>
+              )}
             </div>
           }
         />
@@ -266,11 +275,11 @@ export default function AdminProductsPage() {
           errorDetails={errorDetails}
           onRetry={() => setRefreshKey((prev) => prev + 1)}
           hasRows={rows.length > 0}
-            emptyMessage={debouncedSearch ? "No products match your search." : "No products yet."}
-            colCount={6}
-            stickyHeader
-            zebraRows
-            density="comfortable"
+          emptyMessage={debouncedSearch ? "No products match your search." : "No products yet."}
+          colCount={canManageProducts ? 6 : 5}
+          stickyHeader
+          zebraRows
+          density="comfortable"
         >
           <thead>
             <tr className={adminTableHeadRowClass}>
@@ -279,7 +288,7 @@ export default function AdminProductsPage() {
               <th className={adminTableHeadCellClass}>Created</th>
               <th className={adminTableHeadCellClass}>Orders</th>
               <th className={adminTableHeadCellClass}>Events</th>
-              <th className={adminTableHeadCellClass}>Actions</th>
+              {canManageProducts ? <th className={adminTableHeadCellClass}>Actions</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -303,8 +312,9 @@ export default function AdminProductsPage() {
                       onClick={() => {
                         void copyProductId(row.id);
                       }}
-                      className="rounded border border-[color:var(--ui-border-soft)] px-1.5 py-0.5 text-[10px] text-[var(--ui-text-muted)] transition hover:bg-[color:var(--surface-alt)]"
+                      className={`${actionButtonClass} text-[var(--ui-text-muted)]`}
                       aria-label="Copy full product id"
+                      title={row.id}
                     >
                       {copiedProductId === row.id ? "Copied" : "Copy"}
                     </button>
@@ -313,19 +323,21 @@ export default function AdminProductsPage() {
                 <td className={`${adminTableCellClass} w-[160px] text-[var(--ui-text-secondary)]`}>{row.created}</td>
                 <td className={`${adminTableCellClass} w-[80px] tabular-nums`}>{row.orders}</td>
                 <td className={`${adminTableCellClass} w-[80px] tabular-nums`}>{row.events}</td>
-                <td className={`${adminTableCellClass} w-[90px]`}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const target = products.find((product) => product.id === row.id) ?? null;
-                      setArchiveError(null);
-                      setArchiveTarget(target);
-                    }}
-                    className="rounded border border-[color:var(--ui-border-soft)] px-2 py-1 text-xs text-[var(--danger)] transition hover:bg-[color:var(--surface-alt)]"
-                  >
-                    Archive
-                  </button>
-                </td>
+                {canManageProducts ? (
+                  <td className={`${adminTableCellClass} w-[90px]`}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const target = products.find((product) => product.id === row.id) ?? null;
+                        setArchiveError(null);
+                        setArchiveTarget(target);
+                      }}
+                      className={`${actionButtonClass} text-[var(--danger)]`}
+                    >
+                      Archive
+                    </button>
+                  </td>
+                ) : null}
               </tr>
             ))}
           </tbody>
@@ -336,7 +348,7 @@ export default function AdminProductsPage() {
             <Button
               type="button"
               variant="ghost"
-              className="h-10 px-4 py-0 text-sm"
+              className="h-9 px-4 py-0 text-sm"
               onClick={() => {
                 void loadMore();
               }}
@@ -348,11 +360,7 @@ export default function AdminProductsPage() {
         ) : null}
       </GlassCard>
 
-      <Dialog
-        open={isCreateOpen}
-        onClose={handleCloseCreateDialog}
-        className="max-w-md"
-      >
+      <Dialog open={canManageProducts && isCreateOpen} onClose={handleCloseCreateDialog} className="max-w-md">
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-[var(--ui-text-primary)]">Create product</h2>
           <Input
@@ -371,8 +379,8 @@ export default function AdminProductsPage() {
             onChange={(event) => setCreatePrice(event.target.value)}
             placeholder="1.00"
           />
-          {createError ? <p className="text-sm text-[var(--danger)]">{createError}</p> : null}
-          <div className="flex justify-end gap-2">
+          {createError ? <p className="text-xs text-[var(--danger)]">{createError}</p> : null}
+          <div className="flex justify-end gap-2 pt-1">
             <Button
               type="button"
               variant="ghost"
@@ -388,18 +396,14 @@ export default function AdminProductsPage() {
         </div>
       </Dialog>
 
-      <Dialog
-        open={Boolean(archiveTarget)}
-        onClose={handleCloseArchiveDialog}
-        className="max-w-md"
-      >
+      <Dialog open={canManageProducts && Boolean(archiveTarget)} onClose={handleCloseArchiveDialog} className="max-w-md">
         <div className="space-y-4">
           <h2 className="text-lg font-semibold text-[var(--ui-text-primary)]">Archive product?</h2>
           <p className="text-sm text-[var(--ui-text-muted)]">
             This will hide the product from active use without removing related analytics history.
           </p>
-          {archiveError ? <p className="text-sm text-[var(--danger)]">{archiveError}</p> : null}
-          <div className="flex justify-end gap-2">
+          {archiveError ? <p className="text-xs text-[var(--danger)]">{archiveError}</p> : null}
+          <div className="flex justify-end gap-2 pt-1">
             <Button
               type="button"
               variant="ghost"
@@ -417,3 +421,4 @@ export default function AdminProductsPage() {
     </AdminPage>
   );
 }
+

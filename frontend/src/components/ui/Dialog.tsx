@@ -75,7 +75,7 @@ export default function Dialog({ open, onClose, children, className }: DialogPro
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        className={`w-full rounded-[var(--radius-xl)] border border-[color:var(--border)] bg-[color:var(--surface)] p-5 shadow-[var(--shadow-card)] ${className ?? "max-w-2xl"}`}
+        className={`w-full rounded-[var(--radius-xl)] border border-[color:var(--border)] bg-[color:var(--surface)] p-5 shadow-[var(--shadow-card)] sm:p-6 ${className ?? "max-w-2xl"}`}
       >
         {children}
       </div>

@@ -19,18 +19,49 @@ async function main() {
   const admin = await prisma.user.upsert({
     where: { email },
     update: {
-      role: "ADMIN",
+      role: "SUPER_ADMIN",
       passwordHash,
       fullName,
       suspendedAt: null,
     },
     create: {
       email,
-      role: "ADMIN",
+      role: "SUPER_ADMIN",
       passwordHash,
       fullName,
     },
     select: { id: true, email: true },
+  });
+
+  const workspace = await prisma.workspace.upsert({
+    where: { slug: "admin-workspace" },
+    update: {
+      name: "Admin Workspace",
+      createdByUserId: admin.id,
+    },
+    create: {
+      name: "Admin Workspace",
+      slug: "admin-workspace",
+      createdByUserId: admin.id,
+    },
+    select: { id: true },
+  });
+
+  await prisma.workspaceMember.upsert({
+    where: {
+      workspaceId_userId: {
+        workspaceId: workspace.id,
+        userId: admin.id,
+      },
+    },
+    update: {
+      role: "WORKSPACE_ADMIN",
+    },
+    create: {
+      workspaceId: workspace.id,
+      userId: admin.id,
+      role: "WORKSPACE_ADMIN",
+    },
   });
 
   const cleanup = await prisma.user.deleteMany({

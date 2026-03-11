@@ -1,6 +1,7 @@
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? "http://localhost:4000";
 const CSRF_ENDPOINT = "/auth/csrf";
 const CSRF_HEADER_NAME = "x-csrf-token";
+const WORKSPACE_STORAGE_KEY = "selectedWorkspaceId";
 
 let csrfToken: string | null = null;
 let csrfTokenPromise: Promise<string> | null = null;
@@ -25,6 +26,13 @@ export class ApiError extends Error {
 
 export function apiUrl(path: string) {
   return `${API_URL.replace(/\/$/, "")}${path}`;
+}
+
+function getSelectedWorkspaceId() {
+  if (typeof window === "undefined") return null;
+  const raw = window.localStorage.getItem(WORKSPACE_STORAGE_KEY);
+  const workspaceId = raw?.trim();
+  return workspaceId ? workspaceId : null;
 }
 
 function isMutatingMethod(method: string) {
@@ -70,6 +78,11 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   if (needsCsrf) {
     const token = await fetchCsrfToken();
     headers.set(CSRF_HEADER_NAME, token);
+  }
+
+  const workspaceId = getSelectedWorkspaceId();
+  if (workspaceId) {
+    headers.set("x-workspace-id", workspaceId);
   }
 
   const execute = async () =>

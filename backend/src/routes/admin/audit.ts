@@ -1,9 +1,12 @@
 import { Router } from "express";
 import { asyncHandler } from "../../middleware/asyncHandler.js";
 import type { AuthRequest } from "../../middleware/auth.js";
+import { requireWorkspace, requireWorkspaceRole } from "../../middleware/workspace.js";
 import { getAuditDelegate, parsePositiveInt } from "./shared.js";
+import { WorkspaceMemberRole } from "@prisma/client";
 
 const router = Router();
+router.use(requireWorkspace, requireWorkspaceRole(WorkspaceMemberRole.WORKSPACE_VIEWER));
 
 router.get(
   "/audit-logs",
@@ -28,6 +31,7 @@ router.get(
     };
 
     const where = {
+      workspaceId: req.workspaceId,
       ...(actorId ? { actorId } : {}),
       ...(action ? { action } : {}),
       ...(entityType ? { entityType } : {}),
