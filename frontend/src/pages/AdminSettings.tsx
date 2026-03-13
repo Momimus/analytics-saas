@@ -3,32 +3,56 @@ import Button from "../components/Button";
 import Input from "../components/Input";
 import GlassCard from "../components/ui/GlassCard";
 import { AdminPage, AdminPageHeader } from "../components/admin/AdminPageLayout";
+import { getWorkspaceSettings, updateWorkspaceSettings } from "../lib/admin";
+import type { ApiError } from "../lib/api";
 import { track } from "../lib/track";
-
-const WORKSPACE_NAME_STORAGE_KEY = "workspaceDisplayName";
 
 export default function AdminSettingsPage() {
   const [workspaceDisplayName, setWorkspaceDisplayName] = useState("");
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const current = window.localStorage.getItem(WORKSPACE_NAME_STORAGE_KEY) ?? "Analytics Workspace";
-    setWorkspaceDisplayName(current);
+    let active = true;
+    setLoading(true);
+    setError(null);
+
+    getWorkspaceSettings()
+      .then((result) => {
+        if (!active) return;
+        setWorkspaceDisplayName(result.settings.displayName ?? "Analytics Workspace");
+      })
+      .catch((err: unknown) => {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : "Unable to load settings");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function saveWorkspaceSettings() {
     setSaving(true);
     setSaved(false);
+    setError(null);
     const nextValue = workspaceDisplayName.trim() || "Analytics Workspace";
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(WORKSPACE_NAME_STORAGE_KEY, nextValue);
+    try {
+      const result = await updateWorkspaceSettings({ displayName: nextValue });
+      setWorkspaceDisplayName(result.settings.displayName ?? "Analytics Workspace");
+      await track("settings_updated", { metadata: { section: "workspace" } });
+      setSaved(true);
+    } catch (err: unknown) {
+      const apiErr = err as ApiError;
+      setError(apiErr?.message ?? "Unable to save settings");
+    } finally {
+      setSaving(false);
     }
-    setWorkspaceDisplayName(nextValue);
-    await track("settings_updated", { metadata: { section: "workspace" } });
-    setSaved(true);
-    setSaving(false);
   }
 
   return (
@@ -36,10 +60,10 @@ export default function AdminSettingsPage() {
       <GlassCard>
         <AdminPageHeader
           title="Settings"
-          subtitle="Workspace settings and configuration controls will appear here."
+          subtitle="Workspace settings backed by per-workspace persistence."
           aside={
-            <Button type="button" onClick={() => void saveWorkspaceSettings()} disabled={saving}>
-              {saving ? "Saving..." : "Save"}
+            <Button type="button" onClick={() => void saveWorkspaceSettings()} disabled={loading || saving}>
+              {saving ? "Saving..." : loading ? "Loading..." : "Save"}
             </Button>
           }
           compact
@@ -53,10 +77,12 @@ export default function AdminSettingsPage() {
               setSaved(false);
             }}
             placeholder="Analytics Workspace"
+            disabled={loading || saving}
           />
           <p className="text-sm text-[var(--text-muted)]">
-            This setting is stored locally for now and will be connected to backend settings later.
+            This value is stored per workspace and loaded through the backend settings API.
           </p>
+          {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
           {saved ? <p className="text-sm text-[var(--success)]">Settings saved.</p> : null}
         </div>
       </GlassCard>

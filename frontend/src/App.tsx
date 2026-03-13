@@ -8,7 +8,9 @@ import AdminAnalyticsPage from "./pages/AdminAnalytics";
 import AdminProductsPage from "./pages/AdminProducts";
 import AdminOrdersPage from "./pages/AdminOrders";
 import AdminEventsPage from "./pages/AdminEvents";
+import AdminAuditLogsPage from "./pages/AdminAuditLogs";
 import AdminSettingsPage from "./pages/AdminSettings";
+import AdminUsersPage from "./pages/AdminUsers";
 import NotFound404Page from "./pages/NotFound404";
 import Forbidden403Page from "./pages/Forbidden403";
 import AppShell from "./components/AppShell";
@@ -148,6 +150,22 @@ export default function App() {
           element={
             <RoleProtectedRoute roles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
               <AdminEventsPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/audit-logs"
+          element={
+            <RoleProtectedRoute roles={["SUPER_ADMIN", "WORKSPACE_ADMIN"]}>
+              <AdminAuditLogsPage />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <RoleProtectedRoute roles={["SUPER_ADMIN"]}>
+              <AdminUsersPage />
             </RoleProtectedRoute>
           }
         />

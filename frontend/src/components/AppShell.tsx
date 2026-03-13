@@ -48,13 +48,17 @@ export default function AppShell({ children }: PropsWithChildren) {
         { to: "/admin/events", label: "Events", icon: <Activity className="h-4 w-4" /> },
       ];
       if (canManageCurrentWorkspace) {
+        items.push({ to: "/admin/audit-logs", label: "Audit Logs", icon: <Activity className="h-4 w-4" /> });
         items.push({ to: "/admin/settings", label: "Settings", icon: <Cog className="h-4 w-4" /> });
+      }
+      if (user?.role === "SUPER_ADMIN") {
+        items.push({ to: "/admin/users", label: "Users", icon: <Users className="h-4 w-4" /> });
       }
       return items;
     }
 
     return [{ to: "/login", label: "Login", icon: <LayoutDashboard className="h-4 w-4" /> }];
-  }, [canManageCurrentWorkspace, isAdmin]);
+  }, [canManageCurrentWorkspace, isAdmin, user?.role]);
 
   const isActivePath = useCallback((path: string) => {
     if (path === "/admin/analytics") {
@@ -68,6 +72,8 @@ export default function AppShell({ children }: PropsWithChildren) {
     if (location.pathname.startsWith("/admin/products")) return "Products";
     if (location.pathname.startsWith("/admin/orders")) return "Orders";
     if (location.pathname.startsWith("/admin/events")) return "Events";
+    if (location.pathname.startsWith("/admin/audit-logs")) return "Audit Logs";
+    if (location.pathname.startsWith("/admin/users")) return "Users";
     if (location.pathname.startsWith("/admin/settings")) return "Settings";
     if (location.pathname.startsWith("/admin")) return "Admin";
     if (location.pathname.startsWith("/profile")) return "Profile";

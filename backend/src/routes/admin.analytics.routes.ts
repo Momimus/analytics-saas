@@ -102,6 +102,35 @@ type AnalyticsEventDelegate = {
   }>;
 };
 
+type WorkspaceSettingsDelegate = {
+  findUnique: (args: {
+    where: { workspaceId: string };
+    select: {
+      workspaceId: true;
+      displayName: true;
+      updatedAt: true;
+    };
+  }) => Promise<{
+    workspaceId: string;
+    displayName: string | null;
+    updatedAt: Date;
+  } | null>;
+  upsert: (args: {
+    where: { workspaceId: string };
+    update: { displayName: string | null };
+    create: { workspaceId: string; displayName: string | null };
+    select: {
+      workspaceId: true;
+      displayName: true;
+      updatedAt: true;
+    };
+  }) => Promise<{
+    workspaceId: string;
+    displayName: string | null;
+    updatedAt: Date;
+  }>;
+};
+
 function getAnalyticsDelegates() {
   const client = prisma as unknown as {
     product?: ProductDelegate;
@@ -116,6 +145,16 @@ function getAnalyticsDelegates() {
     order: client.order,
     analyticsEvent: client.analyticsEvent,
   };
+}
+
+function getWorkspaceSettingsDelegate() {
+  const client = prisma as unknown as {
+    workspaceSettings?: WorkspaceSettingsDelegate;
+  };
+  if (!client.workspaceSettings) {
+    throw new HttpError(500, "Prisma client is missing workspaceSettings delegate. Run `npx prisma generate`.");
+  }
+  return client.workspaceSettings;
 }
 
 function parseRange(value: unknown): SupportedRange {
@@ -234,6 +273,79 @@ function decodeActivityCursor(raw: string): { createdAt: Date; id: string } {
 
 router.use("/analytics", analyticsLimiter);
 router.use(requireWorkspace);
+
+router.get(
+  "/settings",
+  requireWorkspaceRole(WorkspaceMemberRole.WORKSPACE_ADMIN),
+  asyncHandler(async (req, res) => {
+    const workspaceId = req.workspaceId as string;
+    const workspaceSettings = await getWorkspaceSettingsDelegate().findUnique({
+      where: { workspaceId },
+      select: {
+        workspaceId: true,
+        displayName: true,
+        updatedAt: true,
+      },
+    });
+
+    return res.json({
+      settings: {
+        workspaceId,
+        displayName: workspaceSettings?.displayName ?? null,
+        updatedAt: workspaceSettings?.updatedAt.toISOString() ?? null,
+      },
+    });
+  })
+);
+
+router.patch(
+  "/settings",
+  requireWorkspaceRole(WorkspaceMemberRole.WORKSPACE_ADMIN),
+  asyncHandler(async (req, res) => {
+    const workspaceId = req.workspaceId as string;
+    assertNoUnknownFields((req.body ?? {}) as Record<string, unknown>, ["displayName"]);
+    const displayNameRaw = typeof req.body?.displayName === "string" ? req.body.displayName.trim() : "";
+    const displayName = displayNameRaw.length > 0 ? displayNameRaw : null;
+
+    if (displayName && (displayName.length < 2 || displayName.length > 80)) {
+      throw new HttpError(400, "displayName must be between 2 and 80 characters");
+    }
+
+    const settings = await getWorkspaceSettingsDelegate().upsert({
+      where: { workspaceId },
+      update: { displayName },
+      create: { workspaceId, displayName },
+      select: {
+        workspaceId: true,
+        displayName: true,
+        updatedAt: true,
+      },
+    });
+
+    const { ip, userAgent } = getRequestMeta(req);
+    await writeAuditLog({
+      workspaceId,
+      actorId: req.user?.id ?? null,
+      actorRole: req.user?.role ?? null,
+      action: "workspace.settings_updated",
+      entityType: "workspace_settings",
+      entityId: settings.workspaceId,
+      metadata: {
+        displayName: settings.displayName,
+      },
+      ip,
+      userAgent,
+    });
+
+    return res.json({
+      settings: {
+        workspaceId: settings.workspaceId,
+        displayName: settings.displayName,
+        updatedAt: settings.updatedAt.toISOString(),
+      },
+    });
+  })
+);
 
 router.get(
   "/products",

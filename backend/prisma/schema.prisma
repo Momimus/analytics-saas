@@ -52,6 +52,15 @@ model Workspace {
   orders          Order[]
   events          AnalyticsEvent[]
   auditLogs       AuditLog[]
+  settings        WorkspaceSettings?
+}
+
+model WorkspaceSettings {
+  workspaceId  String     @id
+  displayName  String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  workspace    Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 model WorkspaceMember {

@@ -6,7 +6,7 @@ import { getAuditDelegate, parsePositiveInt } from "./shared.js";
 import { WorkspaceMemberRole } from "@prisma/client";
 
 const router = Router();
-router.use(requireWorkspace, requireWorkspaceRole(WorkspaceMemberRole.WORKSPACE_VIEWER));
+router.use(requireWorkspace, requireWorkspaceRole(WorkspaceMemberRole.WORKSPACE_ADMIN));
 
 router.get(
   "/audit-logs",
