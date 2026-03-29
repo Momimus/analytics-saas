@@ -29,20 +29,12 @@ const PORT = env.PORT;
 const JWT_SECRET = env.JWT_SECRET;
 const IS_PROD = env.NODE_ENV === "production";
 const RUNTIME_MODE = detectRuntimeMode(fileURLToPath(import.meta.url));
-const ALLOWED_ORIGINS = (
-  process.env.ALLOWED_ORIGINS ??
-  process.env.CSRF_ALLOWED_ORIGINS ??
-  process.env.FRONTEND_ORIGIN ??
-  "http://localhost:5173,http://127.0.0.1:5173"
-)
-  .split(",")
-  .map((value) => value.trim())
-  .filter(Boolean);
-const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? "auth_token";
-const WORKSPACE_COOKIE_NAME = process.env.WORKSPACE_COOKIE_NAME ?? "ws";
-const AUTH_COOKIE_SAMESITE = process.env.AUTH_COOKIE_SAMESITE ?? "lax";
-const CSRF_COOKIE_NAME = process.env.CSRF_COOKIE_NAME ?? "csrf_token";
-const CSRF_HEADER_NAME = (process.env.CSRF_HEADER_NAME ?? "x-csrf-token").toLowerCase();
+const ALLOWED_ORIGINS = env.ALLOWED_ORIGINS;
+const AUTH_COOKIE_NAME = env.AUTH_COOKIE_NAME;
+const WORKSPACE_COOKIE_NAME = env.WORKSPACE_COOKIE_NAME;
+const AUTH_COOKIE_SAMESITE = env.AUTH_COOKIE_SAMESITE;
+const CSRF_COOKIE_NAME = env.CSRF_COOKIE_NAME;
+const CSRF_HEADER_NAME = env.CSRF_HEADER_NAME;
 
 if (!IS_PROD && (prisma as unknown as Record<string, unknown>).passwordResetToken === undefined) {
   throw new Error("Prisma client is missing passwordResetToken delegate. Run `npx prisma generate`.");

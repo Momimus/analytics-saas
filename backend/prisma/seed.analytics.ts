@@ -62,6 +62,18 @@ function decimalToNumber(value: Prisma.Decimal) {
 }
 
 async function main() {
+  const nodeEnv = process.env.NODE_ENV?.trim().toLowerCase() || "development";
+  const allowDestructiveSeed = process.env.ENABLE_DESTRUCTIVE_ANALYTICS_SEED === "true";
+
+  if (nodeEnv === "production") {
+    throw new Error("Analytics sample seeding is disabled in production.");
+  }
+  if (!allowDestructiveSeed) {
+    throw new Error(
+      "Analytics sample seeding is destructive for the target workspace. Re-run with ENABLE_DESTRUCTIVE_ANALYTICS_SEED=true or use `npm --workspace backend run seed:analytics:dev`."
+    );
+  }
+
   console.log("Seeding analytics dataset...");
   const workspace = await prisma.workspace.findFirst({
     orderBy: { createdAt: "asc" },

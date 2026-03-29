@@ -1,6 +1,6 @@
 import type { PropsWithChildren, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ChevronsLeft, ChevronsRight, Cog, LayoutDashboard, Package, Search, ShoppingCart, Users } from "lucide-react";
+import { Activity, Building2, ChevronsLeft, ChevronsRight, Cog, LayoutDashboard, Package, Search, ShoppingCart, Users } from "lucide-react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { canManageWorkspace, useAuth } from "../context/auth";
 import { useWorkspace } from "../context/workspace";
@@ -42,6 +42,7 @@ export default function AppShell({ children }: PropsWithChildren) {
   const navItems = useMemo<NavItem[]>(() => {
     if (isAdmin) {
       const items: NavItem[] = [
+        { to: "/admin/workspace", label: "Workspace", icon: <Building2 className="h-4 w-4" /> },
         { to: "/admin/analytics", label: "Analytics", icon: <LayoutDashboard className="h-4 w-4" /> },
         { to: "/admin/products", label: "Products", icon: <Package className="h-4 w-4" /> },
         { to: "/admin/orders", label: "Orders", icon: <ShoppingCart className="h-4 w-4" /> },
@@ -68,6 +69,7 @@ export default function AppShell({ children }: PropsWithChildren) {
   }, [location.pathname]);
 
   const pageTitle = useMemo(() => {
+    if (location.pathname.startsWith("/admin/workspace")) return "Workspace";
     if (location.pathname.startsWith("/admin/analytics")) return "Analytics";
     if (location.pathname.startsWith("/admin/products")) return "Products";
     if (location.pathname.startsWith("/admin/orders")) return "Orders";
@@ -178,13 +180,11 @@ export default function AppShell({ children }: PropsWithChildren) {
         value={selectedWorkspaceId ?? ""}
         onChange={(nextWorkspaceId) => {
           setSelectedWorkspaceId(nextWorkspaceId);
-          if (location.pathname.startsWith("/admin")) {
-            window.location.reload();
-          }
         }}
+        placeholder="Select workspace"
         ariaLabel="Select workspace"
         items={workspaces.map((workspace) => ({
-          label: workspace.name,
+          label: `${workspace.name} · ${workspace.role === "WORKSPACE_ADMIN" ? "Admin" : "Viewer"}`,
           value: workspace.id,
         }))}
         disabled={workspaces.length === 0}
@@ -199,7 +199,11 @@ export default function AppShell({ children }: PropsWithChildren) {
     </div>
   );
 
-  const shouldBlockAdminContent = isLoggedIn && isAdmin && !selectedWorkspaceId;
+  const shouldBlockAdminContent =
+    isLoggedIn &&
+    isAdmin &&
+    !selectedWorkspaceId &&
+    !location.pathname.startsWith("/admin/workspace");
 
   const desktopSidebar = isLoggedIn && isAdmin ? (
     <aside
@@ -255,6 +259,16 @@ export default function AppShell({ children }: PropsWithChildren) {
           Workspace
         </div>
       )}
+
+      {!isSidebarCollapsed && selectedWorkspace ? (
+        <div className="mb-4 rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-3 py-3 text-xs text-[var(--ui-text-muted)]">
+          <p className="truncate text-sm font-semibold text-[var(--ui-text-primary)]">{selectedWorkspace.name}</p>
+          <p className="mt-1 truncate">/{selectedWorkspace.slug}</p>
+          <p className="mt-2 inline-flex rounded border border-[color:var(--ui-border-soft)] bg-[color:var(--surface-alt)] px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em]">
+            {selectedWorkspace.role === "WORKSPACE_ADMIN" ? "Workspace Admin" : "Workspace Viewer"}
+          </p>
+        </div>
+      ) : null}
 
       <nav className="grid gap-1">
         {navItems.map((item) => {

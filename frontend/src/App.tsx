@@ -11,11 +11,13 @@ import AdminEventsPage from "./pages/AdminEvents";
 import AdminAuditLogsPage from "./pages/AdminAuditLogs";
 import AdminSettingsPage from "./pages/AdminSettings";
 import AdminUsersPage from "./pages/AdminUsers";
+import AdminWorkspacePage from "./pages/AdminWorkspace";
 import NotFound404Page from "./pages/NotFound404";
 import Forbidden403Page from "./pages/Forbidden403";
 import AppShell from "./components/AppShell";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuth } from "./context/auth";
+import { useWorkspace } from "./context/workspace";
 import type { PropsWithChildren } from "react";
 
 function PublicOnlyRoute({ children }: PropsWithChildren) {
@@ -62,9 +64,11 @@ function RoleProtectedRoute({
 }
 
 export default function App() {
+  const { selectedWorkspaceId } = useWorkspace();
+
   return (
     <AppShell>
-      <Routes>
+      <Routes key={selectedWorkspaceId ?? "no-workspace"}>
         <Route
           path="/login"
           element={
@@ -118,6 +122,14 @@ export default function App() {
           element={
             <RoleProtectedRoute roles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
               <Navigate to="/admin/analytics" replace />
+            </RoleProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/workspace"
+          element={
+            <RoleProtectedRoute roles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
+              <AdminWorkspacePage />
             </RoleProtectedRoute>
           }
         />

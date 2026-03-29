@@ -31,19 +31,22 @@ Production-ready analytics SaaS baseline with workspace isolation.
 2. Configure env files
    - `backend/.env.example` -> `backend/.env`
    - `frontend/.env.example` -> `frontend/.env`
+   - Set a real `JWT_SECRET` before running in production.
 3. Apply migrations
    - `npm --workspace backend run prisma -- migrate deploy`
 4. Generate Prisma client
    - `npm --workspace backend run prisma -- generate`
-5. Seed super admin
+5. Seed super admin (idempotent; does not delete existing users)
    - `npm --workspace backend run db:seed`
-6. (Optional) Seed analytics sample data
-   - `npm --workspace backend run seed:analytics`
+6. (Optional, dev-only) Seed analytics sample data for the earliest workspace
+   - `npm --workspace backend run seed:analytics:dev`
 
 ## Run
 - Full stack: `npm run dev`
 - Backend only: `npm --workspace backend run dev`
 - Frontend only: `npm --workspace frontend run dev`
+
+`npm run dev` now uses a cross-platform Node launcher instead of shell-specific `&` behavior.
 
 ## Workspace-scoped API routes
 - `GET /me/workspaces`
@@ -77,3 +80,7 @@ Production-ready analytics SaaS baseline with workspace isolation.
 5. Build frontend/backend
    - `npm run build`
 6. Start backend/frontend according to your deployment runtime
+
+## Safety notes
+- `backend/prisma/seed.ts` is safe to re-run and no longer removes non-admin users.
+- `backend/prisma/seed.analytics.ts` is intentionally blocked in production and requires an explicit dev-only script because it replaces analytics data inside one workspace.

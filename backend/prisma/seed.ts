@@ -6,9 +6,14 @@ const prisma = new PrismaClient();
 const BCRYPT_ROUNDS = 10;
 
 async function main() {
+  const nodeEnv = process.env.NODE_ENV?.trim().toLowerCase() || "development";
   const email = process.env.ADMIN_EMAIL?.trim().toLowerCase() || "admin@gmail.com";
   const password = process.env.ADMIN_PASSWORD?.trim() || "admin123456";
   const fullName = process.env.ADMIN_NAME?.trim() || "Admin";
+
+  if (nodeEnv === "production" && (email === "admin@gmail.com" || password === "admin123456")) {
+    throw new Error("Refusing to seed production with default admin credentials. Set ADMIN_EMAIL and ADMIN_PASSWORD.");
+  }
 
   if (password.length < 6) {
     throw new Error("ADMIN_PASSWORD must be at least 6 characters.");
@@ -64,15 +69,9 @@ async function main() {
     },
   });
 
-  const cleanup = await prisma.user.deleteMany({
-    where: {
-      id: { not: admin.id },
-    },
-  });
-
   const finalCount = await prisma.user.count();
   console.log(`Admin ready: ${admin.email}`);
-  console.log(`Removed ${cleanup.count} non-target users. Current user count: ${finalCount}`);
+  console.log(`Seed finished without removing existing users. Current user count: ${finalCount}`);
 }
 
 main()

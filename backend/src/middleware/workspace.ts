@@ -3,8 +3,9 @@ import { Role, WorkspaceMemberRole } from "@prisma/client";
 import prisma from "../lib/prisma.js";
 import type { AuthRequest } from "./auth.js";
 import { sendError } from "../utils/httpError.js";
+import { env } from "../config/env.js";
 
-const WORKSPACE_COOKIE = process.env.WORKSPACE_COOKIE_NAME ?? "ws";
+const WORKSPACE_COOKIE = env.WORKSPACE_COOKIE_NAME;
 
 function readWorkspaceId(req: AuthRequest) {
   const headerValue = typeof req.headers["x-workspace-id"] === "string" ? req.headers["x-workspace-id"].trim() : "";

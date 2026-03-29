@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import type { AnalyticsActivityEvent } from "../api/adminAnalytics";
 import { getActivity } from "../api/adminAnalytics";
+import AdminFilterBar from "../components/admin/AdminFilterBar";
 import {
   AdminTable,
   adminTableCellClass,
@@ -10,7 +11,6 @@ import {
 } from "../components/admin/AdminTable";
 import { AdminPage, AdminPageHeader } from "../components/admin/AdminPageLayout";
 import Button from "../components/Button";
-import Input from "../components/Input";
 import Combobox, { type ComboboxOption } from "../components/ui/Combobox";
 import GlassCard from "../components/ui/GlassCard";
 import type { ApiError } from "../lib/api";
@@ -174,88 +174,88 @@ export default function AdminEventsPage() {
     setExpandedRows((prev) => ({ ...prev, [id]: !prev[id] }));
   }
 
+  const activeFilterCount = (debouncedSearch ? 1 : 0) + (eventTypeFilter !== "all" ? 1 : 0);
+  const eventsWithMetadata = visibleEvents.filter((event) => event.metadata && Object.keys(event.metadata).length > 0).length;
+
   return (
     <AdminPage>
       <GlassCard>
-        <AdminPageHeader
-          title="Events Explorer"
-          subtitle="Search and inspect analytics events with cursor-based history."
-          compact
-          aside={
-            <div className="flex items-end gap-2.5">
-              <Input
-                label="Search events"
+        <AdminPageHeader title="Events Explorer" subtitle="Search and inspect analytics events with cursor-based history." compact />
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface-alt)] px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ui-text-muted)]">Visible Events</p>
+            <p className="mt-1 text-xl font-semibold tracking-tight text-[var(--ui-text-primary)]">{visibleEvents.length}</p>
+          </div>
+          <div className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-accent-soft)]/35 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ui-text-muted)]">Metadata Rows</p>
+            <p className="mt-1 text-xl font-semibold tracking-tight text-[var(--ui-text-primary)]">{eventsWithMetadata}</p>
+          </div>
+          <div className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ui-text-muted)]">Range</p>
+            <p className="mt-1 text-sm font-medium text-[var(--ui-text-primary)]">Last 30 days</p>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <AdminFilterBar
+            title="Event Filters"
+            helper="Search event names, IDs, and metadata while narrowing the list by event type."
+            activeFilterCount={activeFilterCount}
+            onReset={activeFilterCount > 0 ? () => {
+              setSearch("");
+              setEventTypeFilter("all");
+            } : undefined}
+          >
+            <label className="relative block md:col-span-2">
+              <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search by event, id, metadata..."
-                className="w-72"
+                className="h-10 w-full rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-3 text-sm text-[var(--ui-text-primary)] shadow-[var(--ui-shadow-sm)] outline-none transition focus:border-[var(--ui-accent)] focus:ring-2 focus:ring-[var(--ui-accent-soft)]"
                 autoComplete="off"
               />
-              <label className="grid w-56 gap-1.5 text-sm font-medium text-[var(--ui-text-muted)]">
-                <span className="text-[var(--ui-text-primary)]">Event type</span>
-                <Combobox
-                  value={eventTypeFilter}
-                  onChange={setEventTypeFilter}
-                  options={eventTypeOptions}
-                  placeholder="All events"
-                  ariaLabel="Filter by event type"
-                />
-              </label>
-            </div>
-          }
-        />
+            </label>
+            <label className="grid gap-1.5 text-sm font-medium text-[var(--ui-text-muted)] md:col-span-2">
+              <span className="text-[var(--ui-text-primary)]">Event type</span>
+              <Combobox
+                value={eventTypeFilter}
+                onChange={setEventTypeFilter}
+                options={eventTypeOptions}
+                placeholder="All events"
+                ariaLabel="Filter by event type"
+              />
+            </label>
+          </AdminFilterBar>
+        </div>
 
-        <AdminTable
-          loading={loading}
-          error={error}
-          errorStatusCode={errorStatusCode}
-          errorDetails={errorDetails}
-          onRetry={() => setRefreshKey((prev) => prev + 1)}
-          hasRows={visibleEvents.length > 0}
-          emptyMessage="No events found."
-          colCount={6}
-          stickyHeader
-          zebraRows
-          density="comfortable"
-        >
-          <thead>
-            <tr className={adminTableHeadRowClass}>
-              <th className={adminTableHeadCellClass}>Event type</th>
-              <th className={adminTableHeadCellClass}>Actor</th>
-              <th className={adminTableHeadCellClass}>Product</th>
-              <th className={adminTableHeadCellClass}>Order</th>
-              <th className={adminTableHeadCellClass}>Date/time</th>
-              <th className={adminTableHeadCellClass}>Metadata</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleEvents.map((event) => {
-              const actor = event.actorLabel?.trim() || event.userId || "System";
-              const preview = formatMetadataPreview(event.metadata);
-              const expanded = Boolean(expandedRows[event.id]);
-              return (
-                <Fragment key={event.id}>
-                  <tr className={adminTableRowClass} data-row-id={event.id}>
-                    <td className={`${adminTableCellClass} min-w-[170px] truncate font-medium`} title={event.eventName}>
-                      {event.eventName}
-                    </td>
-                    <td className={`${adminTableCellClass} min-w-[180px] truncate`} title={actor}>
-                      {actor}
-                    </td>
-                    <td className={`${adminTableCellClass} w-[120px] font-mono text-xs text-[var(--ui-text-muted)]`} title={event.productId ?? "-"}>
-                      {shortId(event.productId)}
-                    </td>
-                    <td className={`${adminTableCellClass} w-[120px] font-mono text-xs text-[var(--ui-text-muted)]`} title={event.orderId ?? "-"}>
-                      {shortId(event.orderId)}
-                    </td>
-                    <td className={`${adminTableCellClass} w-[190px] whitespace-nowrap text-[var(--ui-text-secondary)]`}>
-                      {formatDateTime(event.createdAt)}
-                    </td>
-                    <td className={`${adminTableCellClass} min-w-[260px]`}>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="truncate text-[var(--ui-text-secondary)]" title={preview}>
-                          {preview}
-                        </span>
+        <div className="mt-4">
+          <AdminTable
+            loading={loading}
+            error={error}
+            errorStatusCode={errorStatusCode}
+            errorDetails={errorDetails}
+            onRetry={() => setRefreshKey((prev) => prev + 1)}
+            hasRows={visibleEvents.length > 0}
+            emptyMessage={activeFilterCount > 0 ? "No events match the current filters." : "No events found yet for this workspace."}
+            colCount={6}
+            stickyHeader
+            zebraRows
+            density="comfortable"
+            responsiveMode="stack"
+            mobileStack={
+              <div className="grid gap-3">
+                {visibleEvents.map((event) => {
+                  const actor = event.actorLabel?.trim() || event.userId || "System";
+                  const preview = formatMetadataPreview(event.metadata);
+                  const expanded = Boolean(expandedRows[event.id]);
+                  return (
+                    <article key={event.id} className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-4 py-4 shadow-[var(--ui-shadow-sm)]">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-[var(--ui-text-primary)]">{event.eventName}</p>
+                          <p className="mt-1 truncate text-sm text-[var(--ui-text-secondary)]" title={actor}>{actor}</p>
+                        </div>
                         <button
                           type="button"
                           onClick={() => toggleExpanded(event.id)}
@@ -264,22 +264,98 @@ export default function AdminEventsPage() {
                           {expanded ? "Hide" : "View"}
                         </button>
                       </div>
-                    </td>
-                  </tr>
-                  {expanded ? (
-                    <tr className={adminTableRowClass}>
-                      <td className={`${adminTableCellClass} bg-[color:var(--surface-alt)]`} colSpan={6}>
-                        <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-[var(--ui-radius-sm)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] p-3 font-mono text-[11px] text-[var(--ui-text-secondary)]">
+                      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">Product</p>
+                          <p className="mt-1 font-mono text-xs text-[var(--ui-text-primary)]">{shortId(event.productId)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">Order</p>
+                          <p className="mt-1 font-mono text-xs text-[var(--ui-text-primary)]">{shortId(event.orderId)}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">Date</p>
+                          <p className="mt-1 text-[var(--ui-text-primary)]">{formatDateTime(event.createdAt)}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">Metadata</p>
+                          <p className="mt-1 break-words text-sm text-[var(--ui-text-secondary)]">{preview}</p>
+                        </div>
+                      </div>
+                      {expanded ? (
+                        <pre className="mt-4 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-[var(--ui-radius-sm)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface-alt)] p-3 font-mono text-[11px] text-[var(--ui-text-secondary)]">
                           {formatMetadataBlock(event.metadata)}
                         </pre>
+                      ) : null}
+                    </article>
+                  );
+                })}
+              </div>
+            }
+          >
+            <thead>
+              <tr className={adminTableHeadRowClass}>
+                <th className={adminTableHeadCellClass}>Event type</th>
+                <th className={adminTableHeadCellClass}>Actor</th>
+                <th className={adminTableHeadCellClass}>Product</th>
+                <th className={adminTableHeadCellClass}>Order</th>
+                <th className={adminTableHeadCellClass}>Date/time</th>
+                <th className={adminTableHeadCellClass}>Metadata</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleEvents.map((event) => {
+                const actor = event.actorLabel?.trim() || event.userId || "System";
+                const preview = formatMetadataPreview(event.metadata);
+                const expanded = Boolean(expandedRows[event.id]);
+                return (
+                  <Fragment key={event.id}>
+                    <tr className={adminTableRowClass} data-row-id={event.id}>
+                      <td className={`${adminTableCellClass} min-w-[170px] truncate font-medium`} title={event.eventName}>
+                        {event.eventName}
+                      </td>
+                      <td className={`${adminTableCellClass} min-w-[180px] truncate`} title={actor}>
+                        {actor}
+                      </td>
+                      <td className={`${adminTableCellClass} w-[120px] font-mono text-xs text-[var(--ui-text-muted)]`} title={event.productId ?? "-"}>
+                        {shortId(event.productId)}
+                      </td>
+                      <td className={`${adminTableCellClass} w-[120px] font-mono text-xs text-[var(--ui-text-muted)]`} title={event.orderId ?? "-"}>
+                        {shortId(event.orderId)}
+                      </td>
+                      <td className={`${adminTableCellClass} w-[190px] whitespace-nowrap text-[var(--ui-text-secondary)]`}>
+                        {formatDateTime(event.createdAt)}
+                      </td>
+                      <td className={`${adminTableCellClass} min-w-[260px]`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate text-[var(--ui-text-secondary)]" title={preview}>
+                            {preview}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleExpanded(event.id)}
+                            className={`${actionButtonClass} shrink-0 text-[var(--ui-text-muted)]`}
+                          >
+                            {expanded ? "Hide" : "View"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  ) : null}
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </AdminTable>
+                    {expanded ? (
+                      <tr className={adminTableRowClass}>
+                        <td className={`${adminTableCellClass} bg-[color:var(--surface-alt)]`} colSpan={6}>
+                          <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-[var(--ui-radius-sm)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] p-3 font-mono text-[11px] text-[var(--ui-text-secondary)]">
+                            {formatMetadataBlock(event.metadata)}
+                          </pre>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </AdminTable>
+        </div>
 
         {nextCursor ? (
           <div className="mt-3 flex justify-center">

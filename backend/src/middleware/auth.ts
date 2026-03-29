@@ -4,10 +4,11 @@ import { Role } from "@prisma/client";
 import prisma from "../lib/prisma.js";
 import { sendError } from "../utils/httpError.js";
 import { getCookieValue } from "../utils/cookies.js";
+import { env } from "../config/env.js";
 
-const JWT_SECRET = process.env.JWT_SECRET?.trim() ?? "";
-const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME ?? "auth_token";
-const ALLOW_BEARER_AUTH = process.env.ALLOW_BEARER_AUTH === "true";
+const JWT_SECRET = env.JWT_SECRET;
+const AUTH_COOKIE_NAME = env.AUTH_COOKIE_NAME;
+const ALLOW_BEARER_AUTH = env.ALLOW_BEARER_AUTH;
 
 type AuthPayload = {
   sub: string;

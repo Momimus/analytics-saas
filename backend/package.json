@@ -10,6 +10,7 @@
     "prisma": "prisma",
     "db:seed": "prisma db seed",
     "seed:analytics": "tsx prisma/seed.analytics.ts",
+    "seed:analytics:dev": "node scripts/run-destructive-analytics-seed.mjs",
     "lint": "eslint \"src/**/*.ts\" \"vitest.config.ts\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

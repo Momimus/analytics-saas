@@ -14,6 +14,7 @@ import {
   adminTableHeadRowClass,
   adminTableRowClass,
 } from "../components/admin/AdminTable";
+import AdminFilterBar from "../components/admin/AdminFilterBar";
 import Button from "../components/Button";
 import { AdminPage, AdminPageHeader } from "../components/admin/AdminPageLayout";
 import Dialog from "../components/ui/Dialog";
@@ -302,42 +303,58 @@ export default function AdminOrdersPage() {
   return (
     <AdminPage>
       <GlassCard>
-        <AdminPageHeader
-          title="Orders"
-          subtitle="Browse transaction records with product and status context."
-          aside={
-            <div className="flex items-center gap-2.5">
-              <label className="relative block">
-                <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-[var(--ui-text-muted)]" />
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search orders"
-                  className="h-10 w-64 rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-9 text-sm text-[var(--ui-text-primary)] shadow-[var(--ui-shadow-sm)] outline-none transition focus:border-[var(--ui-accent)] focus:ring-2 focus:ring-[var(--ui-accent-soft)]"
-                />
-              </label>
-              {canManageOrders ? (
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setError(null);
-                    setProductFieldError(null);
-                    setSelectedProductId("");
-                    setProductQuery("");
-                    setAmount("");
-                    setStatus("completed");
-                    setIsCreateOpen(true);
-                  }}
-                >
-                  Create order
-                </Button>
-              ) : (
-                <span className="text-sm text-[var(--ui-text-muted)]">Read-only access</span>
-              )}
-            </div>
-          }
-          compact
-        />
+        <AdminPageHeader title="Orders" subtitle="Browse transaction records with product and status context." compact />
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface-alt)] px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ui-text-muted)]">Visible Orders</p>
+            <p className="mt-1 text-xl font-semibold tracking-tight text-[var(--ui-text-primary)]">{rows.length}</p>
+          </div>
+          <div className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-accent-soft)]/35 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ui-text-muted)]">Visible Revenue</p>
+            <p className="mt-1 text-xl font-semibold tracking-tight text-[var(--ui-text-primary)]">{formatCurrency(orders.reduce((sum, order) => sum + order.amount, 0))}</p>
+          </div>
+          <div className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ui-text-muted)]">Mode</p>
+            <p className="mt-1 text-sm font-medium text-[var(--ui-text-primary)]">{canManageOrders ? "Manage orders" : "Read-only access"}</p>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <AdminFilterBar
+            title="Order Controls"
+            helper="Search transaction history and manage the current workspace order flow."
+            activeFilterCount={debouncedSearch ? 1 : 0}
+            onReset={debouncedSearch ? () => setSearch("") : undefined}
+            rightSlot={canManageOrders ? (
+              <Button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setProductFieldError(null);
+                  setSelectedProductId("");
+                  setProductQuery("");
+                  setAmount("");
+                  setStatus("completed");
+                  setIsCreateOpen(true);
+                }}
+              >
+                Create order
+              </Button>
+            ) : undefined}
+          >
+            <label className="relative block md:col-span-2">
+              <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-[var(--ui-text-muted)]" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search orders"
+                className="h-10 w-full rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-9 text-sm text-[var(--ui-text-primary)] shadow-[var(--ui-shadow-sm)] outline-none transition focus:border-[var(--ui-accent)] focus:ring-2 focus:ring-[var(--ui-accent-soft)]"
+              />
+            </label>
+          </AdminFilterBar>
+        </div>
+
         {success ? <p className="mt-3 text-sm text-[var(--success)]">{success}</p> : null}
         {error ? <p className="mt-2 text-sm text-[var(--danger)]">{error}</p> : null}
 
@@ -354,6 +371,66 @@ export default function AdminOrdersPage() {
             stickyHeader
             zebraRows
             density="comfortable"
+            responsiveMode="stack"
+            mobileStack={
+              <div className="grid gap-3">
+                {rows.map((row) => (
+                  <article key={row.id} className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-4 py-4 shadow-[var(--ui-shadow-sm)]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-[var(--ui-text-primary)]">#{row.shortId}</p>
+                        <p className="mt-1 truncate text-sm text-[var(--ui-text-secondary)]" title={row.productTitle}>{row.productLabel}</p>
+                      </div>
+                      <Badge tone={statusTone(row.status)}>{row.status}</Badge>
+                    </div>
+                    <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">Created</p>
+                        <p className="mt-1 text-[var(--ui-text-primary)]">{row.created}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">Amount</p>
+                        <p className="mt-1 font-medium text-[var(--ui-text-primary)]">{row.amount}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">Events</p>
+                        <p className="mt-1 font-medium text-[var(--ui-text-primary)]">{row.events}</p>
+                      </div>
+                    </div>
+                    {canManageOrders ? (
+                      <div className="mt-4 flex items-center gap-2 border-t border-[color:var(--ui-border-soft)] pt-3">
+                        <button
+                          type="button"
+                          disabled={row.status.toLowerCase() === "refunded"}
+                          onClick={() => {
+                            const target = orders.find((order) => order.id === row.id) ?? null;
+                            setStatusError(null);
+                            setStatusAction("refunded");
+                            setStatusTarget(target);
+                          }}
+                          className={`${actionButtonClass} text-[var(--warning)]`}
+                        >
+                          Refund
+                        </button>
+                        <button
+                          type="button"
+                          disabled={row.status.toLowerCase() === "canceled"}
+                          onClick={() => {
+                            const target = orders.find((order) => order.id === row.id) ?? null;
+                            setStatusError(null);
+                            setStatusAction("canceled");
+                            setStatusTarget(target);
+                          }}
+                          className={`${actionButtonClass} text-[var(--danger)]`}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            }
           >
             <thead>
               <tr className={adminTableHeadRowClass}>
@@ -421,15 +498,7 @@ export default function AdminOrdersPage() {
 
         {nextCursor ? (
           <div className="mt-3 flex justify-center">
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-9 px-4 py-0 text-sm"
-              onClick={() => {
-                void loadMore();
-              }}
-              disabled={loadingMore}
-            >
+            <Button type="button" variant="ghost" className="h-9 px-4 py-0 text-sm" onClick={() => { void loadMore(); }} disabled={loadingMore}>
               {loadingMore ? "Loading..." : "Load more"}
             </Button>
           </div>
@@ -461,80 +530,35 @@ export default function AdminOrdersPage() {
               ariaLabel="Select a product"
             />
             {selectedProductId ? (
-              <p className="text-xs text-[var(--ui-text-muted)]" title={selectedProductId}>
-                Full Product ID: {selectedProductId}
-              </p>
+              <p className="text-xs text-[var(--ui-text-muted)]" title={selectedProductId}>Full Product ID: {selectedProductId}</p>
             ) : null}
             {productFieldError ? <p className="text-xs text-[var(--danger)]">{productFieldError}</p> : null}
           </label>
-          <Input
-            label="Order total"
-            type="number"
-            min={0.01}
-            step="0.01"
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
-            placeholder="29.00"
-          />
-          <p className="text-xs text-[var(--ui-text-muted)]">
-            This is the monetary total used in revenue analytics.
-          </p>
+          <Input label="Order total" type="number" min={0.01} step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="29.00" />
+          <p className="text-xs text-[var(--ui-text-muted)]">This is the monetary total used in revenue analytics.</p>
           <label className="grid gap-1.5 text-sm font-medium text-[var(--ui-text-muted)]">
             <span className="text-[var(--ui-text-primary)]">Status</span>
-            <Combobox
-              value={status}
-              onChange={setStatus}
-              options={statusOptions}
-              placeholder="Select status"
-              ariaLabel="Select order status"
-            />
+            <Combobox value={status} onChange={setStatus} options={statusOptions} placeholder="Select status" ariaLabel="Select order status" />
           </label>
           {error ? <p className="text-xs text-[var(--danger)]">{error}</p> : null}
           <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="ghost" onClick={handleCloseCreateOrder} disabled={saving}>
-              Cancel
-            </Button>
-            <Button type="button" onClick={() => void submitCreateOrder()} disabled={saving}>
-              {saving ? "Creating..." : "Create"}
-            </Button>
+            <Button type="button" variant="ghost" onClick={handleCloseCreateOrder} disabled={saving}>Cancel</Button>
+            <Button type="button" onClick={() => void submitCreateOrder()} disabled={saving}>{saving ? "Creating..." : "Create"}</Button>
           </div>
         </div>
       </Dialog>
 
-      <Dialog
-        open={canManageOrders && Boolean(statusTarget)}
-        onClose={() => {
-          if (statusSaving) return;
-          setStatusTarget(null);
-        }}
-        className="max-w-md"
-      >
+      <Dialog open={canManageOrders && Boolean(statusTarget)} onClose={() => { if (statusSaving) return; setStatusTarget(null); }} className="max-w-md">
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-[var(--ui-text-primary)]">
-            {statusAction === "refunded" ? "Refund order?" : "Cancel order?"}
-          </h2>
-          <p className="text-sm text-[var(--ui-text-muted)]">
-            This updates the order status to <span className="font-medium">{statusAction}</span>.
-          </p>
+          <h2 className="text-lg font-semibold text-[var(--ui-text-primary)]">{statusAction === "refunded" ? "Refund order?" : "Cancel order?"}</h2>
+          <p className="text-sm text-[var(--ui-text-muted)]">This updates the order status to <span className="font-medium">{statusAction}</span>.</p>
           {statusError ? <p className="text-xs text-[var(--danger)]">{statusError}</p> : null}
           <div className="flex justify-end gap-2 pt-1">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setStatusTarget(null)}
-              disabled={statusSaving}
-            >
-              Cancel
-            </Button>
-            <Button type="button" onClick={() => void confirmOrderStatusUpdate()} disabled={statusSaving}>
-              {statusSaving ? "Updating..." : "Confirm"}
-            </Button>
+            <Button type="button" variant="ghost" onClick={() => setStatusTarget(null)} disabled={statusSaving}>Cancel</Button>
+            <Button type="button" onClick={() => void confirmOrderStatusUpdate()} disabled={statusSaving}>{statusSaving ? "Updating..." : "Confirm"}</Button>
           </div>
         </div>
       </Dialog>
     </AdminPage>
   );
 }
-
-
-

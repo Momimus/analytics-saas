@@ -13,6 +13,7 @@ import {
   adminTableHeadRowClass,
   adminTableRowClass,
 } from "../components/admin/AdminTable";
+import AdminFilterBar from "../components/admin/AdminFilterBar";
 import { AdminPage, AdminPageHeader } from "../components/admin/AdminPageLayout";
 import Button from "../components/Button";
 import Input from "../components/Input";
@@ -228,45 +229,69 @@ export default function AdminProductsPage() {
           title="Products"
           subtitle="Browse product catalog records and related activity."
           compact
-          aside={
-            <div className="flex items-center gap-2.5">
-              <label className="relative block">
-                <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-[var(--ui-text-muted)]" />
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search products"
-                  className="h-10 w-64 rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-9 text-sm text-[var(--ui-text-primary)] shadow-[var(--ui-shadow-sm)] outline-none transition focus:border-[var(--ui-accent)] focus:ring-2 focus:ring-[var(--ui-accent-soft)]"
-                />
-              </label>
-              <label className="inline-flex h-10 items-center gap-2 rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-3 text-sm text-[var(--ui-text-primary)] shadow-[var(--ui-shadow-sm)]">
-                <input
-                  type="checkbox"
-                  checked={showArchived}
-                  onChange={(event) => {
-                    setShowArchived(event.target.checked);
-                  }}
-                  className="h-4 w-4 rounded border-[color:var(--ui-border-soft)] text-[var(--ui-accent)] focus:ring-[var(--ui-accent-soft)]"
-                />
-                <span>Show archived</span>
-              </label>
-              {canManageProducts ? (
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setCreateError(null);
-                    setCreatePrice("1");
-                    setIsCreateOpen(true);
-                  }}
-                >
-                  Create product
-                </Button>
-              ) : (
-                <span className="text-sm text-[var(--ui-text-muted)]">Read-only access</span>
-              )}
-            </div>
-          }
         />
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface-alt)] px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ui-text-muted)]">Visible Catalog</p>
+            <p className="mt-1 text-xl font-semibold tracking-tight text-[var(--ui-text-primary)]">{rows.length}</p>
+          </div>
+          <div className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-accent-soft)]/35 px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ui-text-muted)]">Orders Captured</p>
+            <p className="mt-1 text-xl font-semibold tracking-tight text-[var(--ui-text-primary)]">
+              {rows.reduce((sum, row) => sum + row.orders, 0)}
+            </p>
+          </div>
+          <div className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-4 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ui-text-muted)]">Mode</p>
+            <p className="mt-1 text-sm font-medium text-[var(--ui-text-primary)]">{canManageProducts ? "Manage catalog" : "Read-only access"}</p>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <AdminFilterBar
+            title="Catalog Controls"
+            helper="Search, review archived items, and manage the current workspace catalog."
+            activeFilterCount={(debouncedSearch ? 1 : 0) + (showArchived ? 1 : 0)}
+            onReset={debouncedSearch || showArchived ? () => {
+              setSearch("");
+              setShowArchived(false);
+            } : undefined}
+            rightSlot={canManageProducts ? (
+              <Button
+                type="button"
+                onClick={() => {
+                  setCreateError(null);
+                  setCreatePrice("1");
+                  setIsCreateOpen(true);
+                }}
+              >
+                Create product
+              </Button>
+            ) : undefined}
+          >
+            <label className="relative block md:col-span-2">
+              <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-[var(--ui-text-muted)]" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search products"
+                className="h-10 w-full rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-9 text-sm text-[var(--ui-text-primary)] shadow-[var(--ui-shadow-sm)] outline-none transition focus:border-[var(--ui-accent)] focus:ring-2 focus:ring-[var(--ui-accent-soft)]"
+              />
+            </label>
+            <label className="inline-flex h-10 items-center gap-2 rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-3 text-sm text-[var(--ui-text-primary)] shadow-[var(--ui-shadow-sm)]">
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={(event) => {
+                  setShowArchived(event.target.checked);
+                }}
+                className="h-4 w-4 rounded border-[color:var(--ui-border-soft)] text-[var(--ui-accent)] focus:ring-[var(--ui-accent-soft)]"
+              />
+              <span>Show archived</span>
+            </label>
+          </AdminFilterBar>
+        </div>
 
         <AdminTable
           loading={loading}
@@ -280,6 +305,67 @@ export default function AdminProductsPage() {
           stickyHeader
           zebraRows
           density="comfortable"
+          responsiveMode="stack"
+          mobileStack={
+            <div className="grid gap-3">
+              {rows.map((row) => (
+                <article key={row.id} className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-4 py-4 shadow-[var(--ui-shadow-sm)]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate font-semibold text-[var(--ui-text-primary)]">{row.name}</p>
+                        {!row.isActive ? (
+                          <span className="rounded border border-[color:var(--ui-border-soft)] bg-[color:var(--surface-alt)] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--ui-text-muted)]">
+                            Archived
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 font-mono text-xs text-[var(--ui-text-muted)]">{row.shortId}</p>
+                    </div>
+                    {canManageProducts ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const target = products.find((product) => product.id === row.id) ?? null;
+                          setArchiveError(null);
+                          setArchiveTarget(target);
+                        }}
+                        className={`${actionButtonClass} shrink-0 text-[var(--danger)]`}
+                      >
+                        Archive
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-3 text-sm">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">Created</p>
+                      <p className="mt-1 text-[var(--ui-text-primary)]">{row.created}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">Orders</p>
+                      <p className="mt-1 font-medium text-[var(--ui-text-primary)]">{row.orders}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">Events</p>
+                      <p className="mt-1 font-medium text-[var(--ui-text-primary)]">{row.events}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between gap-3 border-t border-[color:var(--ui-border-soft)] pt-3">
+                    <span className="truncate text-xs text-[var(--ui-text-muted)]" title={row.id}>{row.id}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void copyProductId(row.id);
+                      }}
+                      className={`${actionButtonClass} shrink-0 text-[var(--ui-text-muted)]`}
+                    >
+                      {copiedProductId === row.id ? "Copied" : "Copy ID"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          }
         >
           <thead>
             <tr className={adminTableHeadRowClass}>
