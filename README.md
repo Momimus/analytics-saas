@@ -84,3 +84,4 @@ Production-ready analytics SaaS baseline with workspace isolation.
 ## Safety notes
 - `backend/prisma/seed.ts` is safe to re-run and no longer removes non-admin users.
 - `backend/prisma/seed.analytics.ts` is intentionally blocked in production and requires an explicit dev-only script because it replaces analytics data inside one workspace.
+# crm-saas
