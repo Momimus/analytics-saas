@@ -13,6 +13,7 @@ import GlassCard from "../components/ui/GlassCard";
 import Badge from "../components/ui/Badge";
 import { listAdminUsers, type AdminUserListItem } from "../lib/admin";
 import type { ApiError } from "../lib/api";
+import { platformRoleLabel } from "../lib/roles";
 
 function formatDate(value: string) {
   const date = new Date(value);
@@ -98,7 +99,7 @@ export default function AdminUsersPage() {
         <div className="mt-4">
           <AdminFilterBar
             title="User Filters"
-            helper="Find users by name or email and narrow the directory by account status."
+            helper="Find users by name or email and narrow the directory by platform role or account status."
             activeFilterCount={activeFilterCount}
             onReset={activeFilterCount > 0 ? () => {
               setPage(1);
@@ -165,8 +166,8 @@ export default function AdminUsersPage() {
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                       <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">Role</p>
-                        <p className="mt-1 text-[var(--ui-text-primary)]">{user.role}</p>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">Platform Role</p>
+                        <p className="mt-1 text-[var(--ui-text-primary)]">{platformRoleLabel(user.role)}</p>
                       </div>
                       <div>
                         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">Created</p>
@@ -185,7 +186,7 @@ export default function AdminUsersPage() {
             <thead>
               <tr className={adminTableHeadRowClass}>
                 <th className={adminTableHeadCellClass}>User</th>
-                <th className={adminTableHeadCellClass}>Role</th>
+                <th className={adminTableHeadCellClass}>Platform Role</th>
                 <th className={adminTableHeadCellClass}>Status</th>
                 <th className={adminTableHeadCellClass}>Created</th>
                 <th className={adminTableHeadCellClass}>User ID</th>
@@ -198,7 +199,7 @@ export default function AdminUsersPage() {
                     <div className="font-medium">{user.fullName?.trim() || user.email}</div>
                     <div className="text-xs text-[var(--ui-text-muted)]">{user.email}</div>
                   </td>
-                  <td className={adminTableCellClass}>{user.role}</td>
+                  <td className={adminTableCellClass}>{platformRoleLabel(user.role)}</td>
                   <td className={adminTableCellClass}>
                     <Badge tone={user.suspendedAt ? "warning" : "success"}>
                       {user.suspendedAt ? "Suspended" : "Active"}

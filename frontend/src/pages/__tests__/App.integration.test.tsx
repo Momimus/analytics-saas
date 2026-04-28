@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "../../App";
@@ -23,6 +23,17 @@ vi.mock("../../pages/AdminAnalytics", () => ({
 }));
 
 const WORKSPACE_STORAGE_KEY = "selectedWorkspaceId";
+const DEFAULT_USER = { id: "user-1", email: "admin@example.com", role: "WORKSPACE_ADMIN" as const };
+const DEFAULT_WORKSPACES = [
+  {
+    id: "ws-1",
+    name: "Northwind",
+    slug: "northwind",
+    createdAt: "2026-03-28T10:00:00.000Z",
+    createdByUserId: "user-1",
+    role: "WORKSPACE_ADMIN" as const,
+  },
+];
 
 function jsonResponse(body: unknown, status = 200) {
   return Promise.resolve(
@@ -47,6 +58,23 @@ function installFetchMock(
   });
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
+}
+
+function installAuthenticatedFetchMock(
+  handler: (request: { url: URL; method: string; headers: Headers; body: string | null }) => Promise<Response>
+) {
+  return installFetchMock(async (request) => {
+    if (request.url.pathname === "/me" && request.method === "GET") {
+      return jsonResponse({ user: DEFAULT_USER });
+    }
+    if (request.url.pathname === "/me/workspaces" && request.method === "GET") {
+      return jsonResponse({ workspaces: DEFAULT_WORKSPACES });
+    }
+    if (request.url.pathname === "/auth/csrf" && request.method === "GET") {
+      return jsonResponse({ csrfToken: "csrf-token-app" });
+    }
+    return handler(request);
+  });
 }
 
 function renderIntegratedApp(initialEntry: string) {
@@ -119,7 +147,7 @@ describe("App browser-level integration flows", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
-    expect(await screen.findByText("Analytics landing")).toBeInTheDocument();
+    expect((await screen.findAllByText("Northwind")).length).toBeGreaterThan(0);
     await waitFor(() => {
       expect(window.localStorage.getItem(WORKSPACE_STORAGE_KEY)).toBe("ws-1");
     });
@@ -139,11 +167,11 @@ describe("App browser-level integration flows", () => {
     expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
   });
 
-  it("loads workspace management and lets the user switch workspace context", async () => {
+  it("loads workspace management and lets a super admin switch workspace context", async () => {
     installFetchMock(async ({ url, method }) => {
       if (url.pathname === "/me" && method === "GET") {
         return jsonResponse({
-          user: { id: "user-1", email: "admin@example.com", role: "WORKSPACE_ADMIN" },
+          user: { id: "super-1", email: "super@example.com", role: "SUPER_ADMIN" },
         });
       }
       if (url.pathname === "/me/workspaces" && method === "GET") {
@@ -155,7 +183,7 @@ describe("App browser-level integration flows", () => {
               slug: "northwind",
               createdAt: "2026-03-28T10:00:00.000Z",
               createdByUserId: "user-1",
-              role: "WORKSPACE_ADMIN",
+              role: "SUPER_ADMIN",
             },
             {
               id: "ws-2",
@@ -163,7 +191,7 @@ describe("App browser-level integration flows", () => {
               slug: "acme",
               createdAt: "2026-03-28T11:00:00.000Z",
               createdByUserId: "user-2",
-              role: "WORKSPACE_VIEWER",
+              role: "SUPER_ADMIN",
             },
           ],
         });
@@ -183,7 +211,7 @@ describe("App browser-level integration flows", () => {
     await waitFor(() => {
       expect(window.localStorage.getItem(WORKSPACE_STORAGE_KEY)).toBe("ws-2");
     });
-    expect(screen.getAllByText("Workspace Viewer").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Platform Access").length).toBeGreaterThan(0);
   });
 
   it("loads and saves workspace settings with workspace and csrf headers", async () => {
@@ -367,6 +395,293 @@ describe("App browser-level integration flows", () => {
 
     expect((await screen.findAllByText("settings.updated")).length).toBeGreaterThan(0);
     expect(screen.getByText("Visible Entries")).toBeInTheDocument();
+  });
+
+  it("creates a product through the real app flow with workspace-scoped requests", async () => {
+    window.localStorage.setItem(WORKSPACE_STORAGE_KEY, "ws-1");
+    let created = false;
+    let productListCalls = 0;
+
+    installAuthenticatedFetchMock(async ({ url, method, headers, body }) => {
+      if (url.pathname === "/admin/products" && method === "GET") {
+        productListCalls += 1;
+        expect(headers.get("x-workspace-id")).toBe("ws-1");
+        return jsonResponse({
+          products: created
+            ? [
+                {
+                    id: "prod-1",
+                    name: "Growth",
+                    isActive: true,
+                    createdAt: "2026-03-28T12:00:00.000Z",
+                    _count: { orders: 0, events: 0 },
+                  },
+              ]
+            : [],
+          nextCursor: null,
+        });
+      }
+      if (url.pathname === "/admin/products" && method === "POST") {
+        expect(headers.get("x-workspace-id")).toBe("ws-1");
+        expect(headers.get("x-csrf-token")).toBeTruthy();
+        expect(body).toContain('"name":"Growth"');
+        expect(body).toContain('"price":99');
+        created = true;
+        return jsonResponse({
+          product: {
+            id: "prod-1",
+            name: "Growth",
+            isActive: true,
+            createdAt: "2026-03-28T12:00:00.000Z",
+          },
+        });
+      }
+      throw new Error(`Unhandled request: ${method} ${url.pathname}${url.search}`);
+    });
+
+    renderIntegratedApp("/admin/products");
+
+    expect(await screen.findByText("No products yet.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Create product" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("Product name"), { target: { value: "Growth" } });
+    fireEvent.change(within(dialog).getByLabelText("Price"), { target: { value: "99" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Create" }));
+
+    await waitFor(() => {
+      expect(created).toBe(true);
+      expect(productListCalls).toBeGreaterThanOrEqual(2);
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  it("archives a product through the real app flow and refreshes the list", async () => {
+    window.localStorage.setItem(WORKSPACE_STORAGE_KEY, "ws-1");
+    let archived = false;
+    let productListCalls = 0;
+
+    installAuthenticatedFetchMock(async ({ url, method, headers }) => {
+      if (url.pathname === "/admin/products" && method === "GET") {
+        productListCalls += 1;
+        expect(headers.get("x-workspace-id")).toBe("ws-1");
+        return jsonResponse({
+          products: archived
+            ? []
+            : [
+                {
+                  id: "prod-1",
+                  name: "Starter",
+                  isActive: true,
+                  createdAt: "2026-03-28T12:00:00.000Z",
+                  _count: { orders: 2, events: 3 },
+                },
+              ],
+          nextCursor: null,
+        });
+      }
+      if (url.pathname === "/admin/products/prod-1" && method === "DELETE") {
+        expect(headers.get("x-workspace-id")).toBe("ws-1");
+        expect(headers.get("x-csrf-token")).toBeTruthy();
+        archived = true;
+        return jsonResponse({ ok: true });
+      }
+      throw new Error(`Unhandled request: ${method} ${url.pathname}${url.search}`);
+    });
+
+    renderIntegratedApp("/admin/products");
+
+    expect((await screen.findAllByText("Starter")).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getAllByRole("button", { name: "Archive" })[0]!);
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Archive" }));
+
+    await waitFor(() => {
+      expect(archived).toBe(true);
+      expect(productListCalls).toBeGreaterThanOrEqual(2);
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  it("creates an order through the real app flow and refreshes the table", async () => {
+    window.localStorage.setItem(WORKSPACE_STORAGE_KEY, "ws-1");
+    let created = false;
+    let orderListCalls = 0;
+
+    installAuthenticatedFetchMock(async ({ url, method, headers, body }) => {
+      if (url.pathname === "/admin/orders" && method === "GET") {
+        orderListCalls += 1;
+        expect(headers.get("x-workspace-id")).toBe("ws-1");
+        return jsonResponse({
+          orders: created
+            ? [
+                {
+                  id: "order-12345678",
+                  createdAt: "2026-03-28T12:00:00.000Z",
+                  productId: "prod-1",
+                  amount: 49,
+                  status: "completed",
+                  product: { id: "prod-1", name: "Starter" },
+                  _count: { events: 1 },
+                },
+              ]
+            : [],
+          nextCursor: null,
+        });
+      }
+      if (url.pathname === "/admin/products" && method === "GET" && url.searchParams.get("limit") === "50") {
+        expect(headers.get("x-workspace-id")).toBe("ws-1");
+        return jsonResponse({
+          products: [
+            {
+              id: "prod-1",
+              name: "Starter",
+              isActive: true,
+              createdAt: "2026-03-28T12:00:00.000Z",
+              _count: { orders: 0, events: 0 },
+            },
+          ],
+          nextCursor: null,
+        });
+      }
+      if (url.pathname === "/admin/orders" && method === "POST") {
+        expect(headers.get("x-workspace-id")).toBe("ws-1");
+        expect(headers.get("x-csrf-token")).toBeTruthy();
+        expect(body).toContain('"productId":"prod-1"');
+        expect(body).toContain('"amount":49');
+        created = true;
+        return jsonResponse({
+          order: {
+            id: "order-12345678",
+            productId: "prod-1",
+            amount: 49,
+            status: "completed",
+            createdAt: "2026-03-28T12:00:00.000Z",
+          },
+        });
+      }
+      throw new Error(`Unhandled request: ${method} ${url.pathname}${url.search}`);
+    });
+
+    renderIntegratedApp("/admin/orders");
+
+    expect(await screen.findByText("No orders yet.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Create order" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Select a product" }));
+    await within(dialog).findByPlaceholderText("Search products");
+    fireEvent.click((await within(dialog).findAllByText("Starter"))[0]!);
+    fireEvent.change(within(dialog).getByLabelText("Order total"), { target: { value: "49" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Create" }));
+
+    await waitFor(() => {
+      expect(created).toBe(true);
+      expect(orderListCalls).toBeGreaterThanOrEqual(2);
+      expect(trackMocks.track).toHaveBeenCalledWith("order_created", {
+        orderId: "order-12345678",
+        productId: "prod-1",
+      });
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  it("refunds an order through the real app flow and shows the updated status", async () => {
+    window.localStorage.setItem(WORKSPACE_STORAGE_KEY, "ws-1");
+    let refunded = false;
+
+    installAuthenticatedFetchMock(async ({ url, method, headers, body }) => {
+      if (url.pathname === "/admin/orders" && method === "GET") {
+        expect(headers.get("x-workspace-id")).toBe("ws-1");
+        return jsonResponse({
+          orders: [
+            {
+              id: "order-12345678",
+              createdAt: "2026-03-28T12:00:00.000Z",
+              productId: "prod-1",
+              amount: 49,
+              status: refunded ? "refunded" : "completed",
+              product: { id: "prod-1", name: "Starter" },
+              _count: { events: 1 },
+            },
+          ],
+          nextCursor: null,
+        });
+      }
+      if (url.pathname === "/admin/orders/order-12345678/status" && method === "PATCH") {
+        expect(headers.get("x-workspace-id")).toBe("ws-1");
+        expect(headers.get("x-csrf-token")).toBeTruthy();
+        expect(body).toContain('"status":"refunded"');
+        refunded = true;
+        return jsonResponse({
+          order: {
+            id: "order-12345678",
+            productId: "prod-1",
+            amount: 49,
+            status: "refunded",
+            createdAt: "2026-03-28T12:00:00.000Z",
+          },
+        });
+      }
+      throw new Error(`Unhandled request: ${method} ${url.pathname}${url.search}`);
+    });
+
+    renderIntegratedApp("/admin/orders");
+
+    expect((await screen.findAllByText("Starter")).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getAllByRole("button", { name: "Refund" })[0]!);
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
+
+    expect((await screen.findAllByText("refunded")).length).toBeGreaterThan(0);
+  });
+
+  it("surfaces refund failures without losing the current order state", async () => {
+    window.localStorage.setItem(WORKSPACE_STORAGE_KEY, "ws-1");
+    let orderListCalls = 0;
+    let refundAttempts = 0;
+
+    installAuthenticatedFetchMock(async ({ url, method, headers, body }) => {
+      if (url.pathname === "/admin/orders" && method === "GET") {
+        orderListCalls += 1;
+        expect(headers.get("x-workspace-id")).toBe("ws-1");
+        return jsonResponse({
+          orders: [
+            {
+              id: "order-12345678",
+              createdAt: "2026-03-28T12:00:00.000Z",
+              productId: "prod-1",
+              amount: 49,
+              status: "completed",
+              product: { id: "prod-1", name: "Starter" },
+              _count: { events: 1 },
+            },
+          ],
+          nextCursor: null,
+        });
+      }
+      if (url.pathname === "/admin/orders/order-12345678/status" && method === "PATCH") {
+        refundAttempts += 1;
+        expect(headers.get("x-workspace-id")).toBe("ws-1");
+        expect(headers.get("x-csrf-token")).toBeTruthy();
+        expect(body).toContain('"status":"refunded"');
+        return jsonResponse({ message: "Unable to update order status." }, 500);
+      }
+      throw new Error(`Unhandled request: ${method} ${url.pathname}${url.search}`);
+    });
+
+    renderIntegratedApp("/admin/orders");
+
+    expect((await screen.findAllByText("Starter")).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getAllByRole("button", { name: "Refund" })[0]!);
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
+
+    await waitFor(() => {
+      expect(refundAttempts).toBe(1);
+      expect(orderListCalls).toBe(1);
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(screen.getAllByText("completed").length).toBeGreaterThan(0);
+    });
   });
 });
 

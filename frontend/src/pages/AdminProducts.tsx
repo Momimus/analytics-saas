@@ -19,21 +19,13 @@ import Button from "../components/Button";
 import Input from "../components/Input";
 import Dialog from "../components/ui/Dialog";
 import GlassCard from "../components/ui/GlassCard";
+import { useWorkspace } from "../context/workspace";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { appendUniqueById } from "../lib/collections";
 import type { ApiError } from "../lib/api";
-import { canManageWorkspace, useAuth } from "../context/auth";
+import { canManageWorkspaceAccess } from "../lib/roles";
 
 const PAGE_SIZE = 25;
-
-function useDebouncedValue<T>(value: T, delayMs: number) {
-  const [debounced, setDebounced] = useState(value);
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => setDebounced(value), delayMs);
-    return () => window.clearTimeout(timeout);
-  }, [value, delayMs]);
-
-  return debounced;
-}
 
 function formatDateTime(value: string) {
   const date = new Date(value);
@@ -50,8 +42,8 @@ function shortId(value: string) {
 }
 
 export default function AdminProductsPage() {
-  const { user } = useAuth();
-  const canManageProducts = canManageWorkspace(user);
+  const { currentWorkspaceRole } = useWorkspace();
+  const canManageProducts = canManageWorkspaceAccess(currentWorkspaceRole);
   const actionButtonClass =
     "inline-flex h-8 items-center justify-center rounded border border-[color:var(--ui-border-soft)] px-2.5 py-0 text-xs transition hover:bg-[color:var(--surface-alt)] disabled:cursor-not-allowed disabled:opacity-50";
   const [search, setSearch] = useState("");
@@ -121,15 +113,7 @@ export default function AdminProductsPage() {
         cursor: nextCursor,
         showArchived,
       });
-      setProducts((prev) => {
-        const merged = [...prev, ...result.products];
-        const seen = new Set<string>();
-        return merged.filter((item) => {
-          if (seen.has(item.id)) return false;
-          seen.add(item.id);
-          return true;
-        });
-      });
+      setProducts((prev) => appendUniqueById(prev, result.products));
       setNextCursor(result.nextCursor);
     } catch (err) {
       const apiErr = err as ApiError;

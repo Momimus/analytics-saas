@@ -20,6 +20,8 @@ import { detectRuntimeMode } from "./utils/runtimeInfo.js";
 import { createCsrfProtection } from "./middleware/csrf.js";
 import { createRateLimiter, hashIdentifier } from "./middleware/rateLimit.js";
 import { writeAuditLog } from "./services/auditService.js";
+import { invalidateAnalyticsWorkspaceCache } from "./services/analyticsCache.js";
+import { createWorkspaceForUser } from "./services/workspaceService.js";
 import { getRequestMeta } from "./utils/requestMeta.js";
 
 const app = express();
@@ -230,71 +232,6 @@ function issueCsrfToken(res: express.Response) {
   const token = crypto.randomBytes(32).toString("hex");
   setCsrfCookie(res, token);
   return token;
-}
-
-function slugifyWorkspaceName(name: string) {
-  const base = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
-  return base || "workspace";
-}
-
-async function createWorkspaceForUser(options: {
-  ownerUserId: string;
-  ownerRole: Role;
-  name: string;
-  slugHint?: string;
-}) {
-  const slugBase = slugifyWorkspaceName(options.slugHint || options.name);
-  let suffix = 0;
-  let workspace = null as
-    | {
-        id: string;
-        name: string;
-        slug: string;
-        createdByUserId: string;
-        createdAt: Date;
-      }
-    | null;
-
-  while (!workspace) {
-    const nextSlug = suffix === 0 ? slugBase : `${slugBase}-${suffix + 1}`;
-    try {
-      workspace = await prisma.workspace.create({
-        data: {
-          name: options.name,
-          slug: nextSlug,
-          createdByUserId: options.ownerUserId,
-          members: {
-            create: {
-              userId: options.ownerUserId,
-              role:
-                options.ownerRole === Role.WORKSPACE_VIEWER
-                  ? WorkspaceMemberRole.WORKSPACE_VIEWER
-                  : WorkspaceMemberRole.WORKSPACE_ADMIN,
-            },
-          },
-        },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          createdByUserId: true,
-          createdAt: true,
-        },
-      });
-    } catch (error) {
-      const known = error as { code?: string };
-      if (known.code !== "P2002" || suffix > 25) {
-        throw error;
-      }
-      suffix += 1;
-    }
-  }
-
-  return workspace;
 }
 
 app.get("/health", (_req, res) => {
@@ -616,6 +553,8 @@ app.post("/track", trackLimiter, attachAuthIfPresent, async (req: AuthRequest, r
     throw new HttpError(500, "Unable to store tracking event");
   }
 
+  invalidateAnalyticsWorkspaceCache(workspaceId);
+
   return res.status(204).send();
 });
 
@@ -670,7 +609,7 @@ app.get("/me/workspaces", requireAuth, async (req: AuthRequest, res) => {
     return res.json({
       workspaces: workspaces.map((workspace) => ({
         ...workspace,
-        role: WorkspaceMemberRole.WORKSPACE_ADMIN,
+        role: Role.SUPER_ADMIN,
       })),
     });
   }
@@ -678,6 +617,7 @@ app.get("/me/workspaces", requireAuth, async (req: AuthRequest, res) => {
   const members = await prisma.workspaceMember.findMany({
     where: { userId: req.user.id },
     orderBy: { createdAt: "asc" },
+    take: 1,
     select: {
       role: true,
       workspace: {

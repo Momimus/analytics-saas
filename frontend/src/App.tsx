@@ -18,6 +18,7 @@ import AppShell from "./components/AppShell";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuth } from "./context/auth";
 import { useWorkspace } from "./context/workspace";
+import { isSuperAdmin, type PlatformRole, type WorkspaceAccessRole } from "./lib/roles";
 import type { PropsWithChildren } from "react";
 
 function PublicOnlyRoute({ children }: PropsWithChildren) {
@@ -40,9 +41,14 @@ function PublicOnlyRoute({ children }: PropsWithChildren) {
 
 function RoleProtectedRoute({
   children,
-  roles,
-}: PropsWithChildren<{ roles: Array<"SUPER_ADMIN" | "WORKSPACE_ADMIN" | "WORKSPACE_VIEWER"> }>) {
+  platformRoles,
+  workspaceRoles,
+}: PropsWithChildren<{
+  platformRoles?: PlatformRole[];
+  workspaceRoles?: WorkspaceAccessRole[];
+}>) {
   const { user, loading } = useAuth();
+  const { currentWorkspaceRole, loading: workspaceLoading } = useWorkspace();
 
   if (loading) {
     return (
@@ -56,8 +62,22 @@ function RoleProtectedRoute({
     return <Navigate to="/login" replace />;
   }
 
-  if (!roles.includes(user.role)) {
-    return <Forbidden403Page currentRole={user.role} requiredRoles={roles} />;
+  if (platformRoles && !platformRoles.includes(user.role)) {
+    return <Forbidden403Page currentRole={user.role} requiredRoles={platformRoles} labelMode="platform" />;
+  }
+
+  if (workspaceRoles && !isSuperAdmin(user.role)) {
+    if (workspaceLoading) {
+      return (
+        <div className="card-animate w-full max-w-xl rounded-[var(--radius-xl)] border border-[color:var(--border)] bg-[color:var(--surface)] p-5 text-center text-sm text-[var(--text-muted)] shadow-[var(--shadow-card)] md:p-7">
+          Loading...
+        </div>
+      );
+    }
+
+    if (!currentWorkspaceRole || !workspaceRoles.includes(currentWorkspaceRole)) {
+      return <Forbidden403Page currentRole={currentWorkspaceRole ?? user.role} requiredRoles={workspaceRoles} labelMode="workspace" />;
+    }
   }
 
   return <>{children}</>;
@@ -120,7 +140,7 @@ export default function App() {
         <Route
           path="/admin"
           element={
-            <RoleProtectedRoute roles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
+            <RoleProtectedRoute workspaceRoles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
               <Navigate to="/admin/analytics" replace />
             </RoleProtectedRoute>
           }
@@ -128,7 +148,7 @@ export default function App() {
         <Route
           path="/admin/workspace"
           element={
-            <RoleProtectedRoute roles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
+            <RoleProtectedRoute workspaceRoles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
               <AdminWorkspacePage />
             </RoleProtectedRoute>
           }
@@ -136,7 +156,7 @@ export default function App() {
         <Route
           path="/admin/analytics"
           element={
-            <RoleProtectedRoute roles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
+            <RoleProtectedRoute workspaceRoles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
               <AdminAnalyticsPage />
             </RoleProtectedRoute>
           }
@@ -144,7 +164,7 @@ export default function App() {
         <Route
           path="/admin/products"
           element={
-            <RoleProtectedRoute roles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
+            <RoleProtectedRoute workspaceRoles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
               <AdminProductsPage />
             </RoleProtectedRoute>
           }
@@ -152,7 +172,7 @@ export default function App() {
         <Route
           path="/admin/orders"
           element={
-            <RoleProtectedRoute roles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
+            <RoleProtectedRoute workspaceRoles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
               <AdminOrdersPage />
             </RoleProtectedRoute>
           }
@@ -160,7 +180,7 @@ export default function App() {
         <Route
           path="/admin/events"
           element={
-            <RoleProtectedRoute roles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
+            <RoleProtectedRoute workspaceRoles={["SUPER_ADMIN", "WORKSPACE_ADMIN", "WORKSPACE_VIEWER"]}>
               <AdminEventsPage />
             </RoleProtectedRoute>
           }
@@ -168,7 +188,7 @@ export default function App() {
         <Route
           path="/admin/audit-logs"
           element={
-            <RoleProtectedRoute roles={["SUPER_ADMIN", "WORKSPACE_ADMIN"]}>
+            <RoleProtectedRoute workspaceRoles={["SUPER_ADMIN", "WORKSPACE_ADMIN"]}>
               <AdminAuditLogsPage />
             </RoleProtectedRoute>
           }
@@ -176,7 +196,7 @@ export default function App() {
         <Route
           path="/admin/users"
           element={
-            <RoleProtectedRoute roles={["SUPER_ADMIN"]}>
+            <RoleProtectedRoute platformRoles={["SUPER_ADMIN"]}>
               <AdminUsersPage />
             </RoleProtectedRoute>
           }
@@ -184,7 +204,7 @@ export default function App() {
         <Route
           path="/admin/settings"
           element={
-            <RoleProtectedRoute roles={["SUPER_ADMIN", "WORKSPACE_ADMIN"]}>
+            <RoleProtectedRoute workspaceRoles={["SUPER_ADMIN", "WORKSPACE_ADMIN"]}>
               <AdminSettingsPage />
             </RoleProtectedRoute>
           }

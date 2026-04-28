@@ -1,8 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../lib/api";
 import { useAuth } from "./auth";
-
-export type WorkspaceRole = "WORKSPACE_ADMIN" | "WORKSPACE_VIEWER";
+import { isSuperAdmin, type WorkspaceAccessRole } from "../lib/roles";
 
 export type WorkspaceSummary = {
   id: string;
@@ -10,15 +9,18 @@ export type WorkspaceSummary = {
   slug: string;
   createdAt: string;
   createdByUserId: string;
-  role: WorkspaceRole;
+  role: WorkspaceAccessRole;
 };
 
 type WorkspaceState = {
   workspaces: WorkspaceSummary[];
+  currentWorkspace: WorkspaceSummary | null;
+  currentWorkspaceRole: WorkspaceAccessRole | null;
   selectedWorkspaceId: string | null;
   loading: boolean;
   setSelectedWorkspaceId: (workspaceId: string) => void;
   refreshWorkspaces: () => Promise<void>;
+  canSwitchWorkspaces: boolean;
 };
 
 const WORKSPACE_STORAGE_KEY = "selectedWorkspaceId";
@@ -35,11 +37,14 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(false);
 
   const setSelectedWorkspaceId = useCallback((workspaceId: string) => {
+    if (!isSuperAdmin(user?.role)) {
+      return;
+    }
     setSelectedWorkspaceIdState(workspaceId);
     if (typeof window !== "undefined") {
       window.localStorage.setItem(WORKSPACE_STORAGE_KEY, workspaceId);
     }
-  }, []);
+  }, [user?.role]);
 
   const clearSelection = useCallback(() => {
     setSelectedWorkspaceIdState(null);
@@ -58,18 +63,30 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const result = await apiFetch<{ workspaces: WorkspaceSummary[] }>("/me/workspaces");
-      const next = result.workspaces;
+      const next = isSuperAdmin(user.role) ? result.workspaces : result.workspaces.slice(0, 1);
       setWorkspaces(next);
 
-      const selected = selectedWorkspaceId;
-      const hasSelected = selected && next.some((workspace) => workspace.id === selected);
-      if (hasSelected) return;
+      if (isSuperAdmin(user.role)) {
+        const selected = selectedWorkspaceId;
+        const hasSelected = selected && next.some((workspace) => workspace.id === selected);
+        if (hasSelected) return;
 
-      const first = next[0];
-      if (first) {
-        setSelectedWorkspaceId(first.id);
+        const first = next[0];
+        if (first) {
+          setSelectedWorkspaceId(first.id);
+        } else {
+          clearSelection();
+        }
       } else {
-        clearSelection();
+        const first = next[0];
+        setSelectedWorkspaceIdState(first?.id ?? null);
+        if (typeof window !== "undefined") {
+          if (first?.id) {
+            window.localStorage.setItem(WORKSPACE_STORAGE_KEY, first.id);
+          } else {
+            window.localStorage.removeItem(WORKSPACE_STORAGE_KEY);
+          }
+        }
       }
     } catch {
       setWorkspaces([]);
@@ -84,15 +101,34 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     void refreshWorkspaces();
   }, [authLoading, refreshWorkspaces]);
 
+  const currentWorkspace = useMemo(
+    () => (selectedWorkspaceId ? workspaces.find((workspace) => workspace.id === selectedWorkspaceId) ?? null : null),
+    [selectedWorkspaceId, workspaces]
+  );
+  const currentWorkspaceRole = currentWorkspace?.role ?? null;
+  const canSwitchWorkspaces = isSuperAdmin(user?.role) && workspaces.length > 1;
+
   const value = useMemo(
     () => ({
       workspaces,
+      currentWorkspace,
+      currentWorkspaceRole,
       selectedWorkspaceId,
       loading,
       setSelectedWorkspaceId,
       refreshWorkspaces,
+      canSwitchWorkspaces,
     }),
-    [workspaces, selectedWorkspaceId, loading, setSelectedWorkspaceId, refreshWorkspaces]
+    [
+      workspaces,
+      currentWorkspace,
+      currentWorkspaceRole,
+      selectedWorkspaceId,
+      loading,
+      setSelectedWorkspaceId,
+      refreshWorkspaces,
+      canSwitchWorkspaces,
+    ]
   );
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;

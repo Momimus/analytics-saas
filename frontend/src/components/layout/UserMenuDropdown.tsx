@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, UserCircle2 } from "lucide-react";
 import Badge from "../ui/Badge";
+import { platformRoleLabel } from "../../lib/roles";
 
 type Role = "SUPER_ADMIN" | "WORKSPACE_ADMIN" | "WORKSPACE_VIEWER";
 
@@ -72,11 +73,11 @@ export default function UserMenuDropdown({
         }`}
       >
         <div className="mb-1 rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface-alt)] px-3 py-2.5">
-          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--ui-text-muted)]">Account</p>
+          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--ui-text-muted)]">Account Role</p>
           <p className="mt-1 truncate text-xs text-[var(--text-muted)]">{userEmail ?? "Signed-in user"}</p>
           <div className="mt-1">
             <Badge tone="success" className="px-2 py-0.5 text-[10px]">
-              {role}
+              {platformRoleLabel(role)}
             </Badge>
           </div>
         </div>

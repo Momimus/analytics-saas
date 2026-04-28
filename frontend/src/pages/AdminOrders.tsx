@@ -22,10 +22,13 @@ import Badge from "../components/ui/Badge";
 import Combobox, { type ComboboxOption } from "../components/ui/Combobox";
 import GlassCard from "../components/ui/GlassCard";
 import Input from "../components/Input";
+import { useWorkspace } from "../context/workspace";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { apiFetch } from "../lib/api";
+import { appendUniqueById } from "../lib/collections";
+import { canManageWorkspaceAccess } from "../lib/roles";
 import { track } from "../lib/track";
 import type { ApiError } from "../lib/api";
-import { canManageWorkspace, useAuth } from "../context/auth";
 
 type CreateOrderResponse = {
   order: {
@@ -38,17 +41,6 @@ type CreateOrderResponse = {
 };
 
 const PAGE_SIZE = 25;
-
-function useDebouncedValue<T>(value: T, delayMs: number) {
-  const [debounced, setDebounced] = useState(value);
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => setDebounced(value), delayMs);
-    return () => window.clearTimeout(timeout);
-  }, [value, delayMs]);
-
-  return debounced;
-}
 
 function formatDateTime(value: string) {
   const date = new Date(value);
@@ -80,8 +72,8 @@ function statusTone(status: string): "success" | "warning" | "neutral" {
 }
 
 export default function AdminOrdersPage() {
-  const { user } = useAuth();
-  const canManageOrders = canManageWorkspace(user);
+  const { currentWorkspaceRole } = useWorkspace();
+  const canManageOrders = canManageWorkspaceAccess(currentWorkspaceRole);
   const actionButtonClass =
     "inline-flex h-8 items-center justify-center rounded border border-[color:var(--ui-border-soft)] px-2.5 py-0 text-xs transition hover:bg-[color:var(--surface-alt)] disabled:cursor-not-allowed disabled:opacity-50";
   const [search, setSearch] = useState("");
@@ -154,15 +146,7 @@ export default function AdminOrdersPage() {
         q: debouncedSearch || undefined,
         cursor: nextCursor,
       });
-      setOrders((prev) => {
-        const merged = [...prev, ...result.orders];
-        const seen = new Set<string>();
-        return merged.filter((item) => {
-          if (seen.has(item.id)) return false;
-          seen.add(item.id);
-          return true;
-        });
-      });
+      setOrders((prev) => appendUniqueById(prev, result.orders));
       setNextCursor(result.nextCursor);
     } catch (err) {
       const apiErr = err as ApiError;

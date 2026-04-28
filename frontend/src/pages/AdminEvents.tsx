@@ -13,21 +13,12 @@ import { AdminPage, AdminPageHeader } from "../components/admin/AdminPageLayout"
 import Button from "../components/Button";
 import Combobox, { type ComboboxOption } from "../components/ui/Combobox";
 import GlassCard from "../components/ui/GlassCard";
+import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { appendUniqueById } from "../lib/collections";
 import type { ApiError } from "../lib/api";
 
 const PAGE_SIZE = 50;
 const DEFAULT_RANGE = "30d";
-
-function useDebouncedValue<T>(value: T, delayMs: number) {
-  const [debounced, setDebounced] = useState(value);
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => setDebounced(value), delayMs);
-    return () => window.clearTimeout(timeout);
-  }, [value, delayMs]);
-
-  return debounced;
-}
 
 function formatDateTime(value: string) {
   const date = new Date(value);
@@ -150,15 +141,7 @@ export default function AdminEventsPage() {
     setLoadingMore(true);
     try {
       const result = await getActivity(DEFAULT_RANGE, PAGE_SIZE, debouncedSearch || undefined, nextCursor);
-      setEvents((prev) => {
-        const merged = [...prev, ...result.events];
-        const seen = new Set<string>();
-        return merged.filter((item) => {
-          if (seen.has(item.id)) return false;
-          seen.add(item.id);
-          return true;
-        });
-      });
+      setEvents((prev) => appendUniqueById(prev, result.events));
       setNextCursor(result.nextCursor);
     } catch (err) {
       const apiErr = err as ApiError;

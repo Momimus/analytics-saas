@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+ï»¿import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Activity, DollarSign, Package, ShoppingCart } from "lucide-react";
 import {
@@ -108,6 +108,13 @@ export default function AdminAnalyticsPage() {
 
   useEffect(() => {
     let active = true;
+    if (!selectedWorkspaceId) {
+      setLoading(false);
+      setIsRefreshing(false);
+      return () => {
+        active = false;
+      };
+    }
     const isInitialLoad = !hasLoadedOnce;
 
     if (isInitialLoad) {
@@ -286,7 +293,7 @@ export default function AdminAnalyticsPage() {
           aside={
             <div className="flex flex-wrap items-center justify-end gap-2">
               <Badge tone="neutral">{dateRange === "30d" ? "Last 30 days" : "Last 7 days"}</Badge>
-              {isRefreshing ? <Badge tone="warning">Updating…</Badge> : null}
+              {isRefreshing ? <Badge tone="warning">Updatingâ€¦</Badge> : null}
               <Button type="button" variant="ghost" className="h-9 px-4 py-0 text-sm" onClick={() => setRefreshKey((prev) => prev + 1)}>
                 Refresh
               </Button>
@@ -482,7 +489,7 @@ export default function AdminAnalyticsPage() {
           </div>
         ) : null}
         {!loading && !nextCursor && filteredRows.length > 0 ? (
-          <p className="mt-4 text-center text-xs text-[var(--ui-text-muted)]">You’re looking at the most recent activity available for this workspace.</p>
+          <p className="mt-4 text-center text-xs text-[var(--ui-text-muted)]">Youâ€™re looking at the most recent activity available for this workspace.</p>
         ) : null}
       </GlassCard>
     </AdminPage>

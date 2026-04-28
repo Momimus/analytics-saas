@@ -14,8 +14,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../../context/auth", () => ({
   useAuth: mocks.useAuth,
-  canManageWorkspace: (user: { role?: string } | null) =>
-    user?.role === "SUPER_ADMIN" || user?.role === "WORKSPACE_ADMIN",
 }));
 
 vi.mock("../../context/workspace", () => ({
@@ -42,6 +40,35 @@ function renderShell(path = "/admin/products") {
   );
 }
 
+function buildWorkspaceState(overrides: Record<string, unknown> = {}) {
+  const currentWorkspace =
+    overrides.currentWorkspace === undefined
+      ? {
+          id: "ws-1",
+          name: "Northwind",
+          slug: "northwind",
+          role: "WORKSPACE_ADMIN",
+        }
+      : overrides.currentWorkspace;
+
+  return {
+    workspaces: [
+      {
+        id: "ws-1",
+        name: "Northwind",
+        slug: "northwind",
+        role: "WORKSPACE_ADMIN",
+      },
+    ],
+    currentWorkspace,
+    currentWorkspaceRole: currentWorkspace ? "WORKSPACE_ADMIN" : null,
+    selectedWorkspaceId: currentWorkspace ? "ws-1" : null,
+    setSelectedWorkspaceId: vi.fn(),
+    loading: false,
+    ...overrides,
+  };
+}
+
 describe("AppShell", () => {
   it("shows role-appropriate navigation for workspace viewers", () => {
     mocks.useAuth.mockReturnValue({
@@ -49,17 +76,23 @@ describe("AppShell", () => {
       logout: mocks.logout,
     });
     mocks.useWorkspace.mockReturnValue({
-      workspaces: [
-        {
+      ...buildWorkspaceState({
+        currentWorkspace: {
           id: "ws-1",
           name: "Northwind",
           slug: "northwind",
           role: "WORKSPACE_VIEWER",
         },
-      ],
-      selectedWorkspaceId: "ws-1",
-      setSelectedWorkspaceId: vi.fn(),
-      loading: false,
+        currentWorkspaceRole: "WORKSPACE_VIEWER",
+        workspaces: [
+          {
+            id: "ws-1",
+            name: "Northwind",
+            slug: "northwind",
+            role: "WORKSPACE_VIEWER",
+          },
+        ],
+      }),
     });
 
     renderShell("/admin/events");
@@ -79,19 +112,7 @@ describe("AppShell", () => {
       user: { id: "admin-1", email: "admin@example.com", role: "WORKSPACE_ADMIN" },
       logout: mocks.logout,
     });
-    mocks.useWorkspace.mockReturnValue({
-      workspaces: [
-        {
-          id: "ws-1",
-          name: "Northwind",
-          slug: "northwind",
-          role: "WORKSPACE_ADMIN",
-        },
-      ],
-      selectedWorkspaceId: "ws-1",
-      setSelectedWorkspaceId: vi.fn(),
-      loading: false,
-    });
+    mocks.useWorkspace.mockReturnValue(buildWorkspaceState());
 
     renderShell("/admin/settings");
 
@@ -105,23 +126,11 @@ describe("AppShell", () => {
       user: { id: "admin-1", email: "admin@example.com", role: "WORKSPACE_ADMIN" },
       logout: mocks.logout,
     });
-    mocks.useWorkspace.mockReturnValue({
-      workspaces: [
-        {
-          id: "ws-1",
-          name: "Northwind",
-          slug: "northwind",
-          role: "WORKSPACE_ADMIN",
-        },
-      ],
-      selectedWorkspaceId: null,
-      setSelectedWorkspaceId: vi.fn(),
-      loading: false,
-    });
+    mocks.useWorkspace.mockReturnValue(buildWorkspaceState({ currentWorkspace: null, currentWorkspaceRole: null, selectedWorkspaceId: null }));
 
     renderShell("/admin/products");
 
-    expect(screen.getByText("Select a workspace to load tenant data.")).toBeInTheDocument();
+    expect(screen.getByText("No workspace is available for this account.")).toBeInTheDocument();
     expect(screen.queryByText("Shell content")).not.toBeInTheDocument();
   });
 
@@ -130,23 +139,11 @@ describe("AppShell", () => {
       user: { id: "admin-1", email: "admin@example.com", role: "WORKSPACE_ADMIN" },
       logout: mocks.logout,
     });
-    mocks.useWorkspace.mockReturnValue({
-      workspaces: [
-        {
-          id: "ws-1",
-          name: "Northwind",
-          slug: "northwind",
-          role: "WORKSPACE_ADMIN",
-        },
-      ],
-      selectedWorkspaceId: null,
-      setSelectedWorkspaceId: vi.fn(),
-      loading: false,
-    });
+    mocks.useWorkspace.mockReturnValue(buildWorkspaceState({ currentWorkspace: null, currentWorkspaceRole: null, selectedWorkspaceId: null }));
 
     renderShell("/admin/workspace");
 
     expect(screen.getByText("Shell content")).toBeInTheDocument();
-    expect(screen.queryByText("Select a workspace to load tenant data.")).not.toBeInTheDocument();
+    expect(screen.queryByText("No workspace is available for this account.")).not.toBeInTheDocument();
   });
 });

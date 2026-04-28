@@ -13,10 +13,6 @@ export type User = {
   address?: string | null;
 };
 
-export function canManageWorkspace(user: User | null) {
-  return user?.role === "SUPER_ADMIN" || user?.role === "WORKSPACE_ADMIN";
-}
-
 type AuthState = {
   user: User | null;
   loading: boolean;

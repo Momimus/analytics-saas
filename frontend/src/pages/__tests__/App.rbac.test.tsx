@@ -53,7 +53,7 @@ describe("App RBAC routes", () => {
       user: { id: "super-1", email: "super@example.com", role: "SUPER_ADMIN" },
       loading: false,
     });
-    mocks.useWorkspace.mockReturnValue({ selectedWorkspaceId: "ws-1" });
+    mocks.useWorkspace.mockReturnValue({ selectedWorkspaceId: "ws-1", currentWorkspaceRole: "SUPER_ADMIN", loading: false });
 
     renderApp("/admin/users");
 
@@ -65,13 +65,13 @@ describe("App RBAC routes", () => {
       user: { id: "viewer-1", email: "viewer@example.com", role: "WORKSPACE_VIEWER" },
       loading: false,
     });
-    mocks.useWorkspace.mockReturnValue({ selectedWorkspaceId: "ws-1" });
+    mocks.useWorkspace.mockReturnValue({ selectedWorkspaceId: "ws-1", currentWorkspaceRole: "WORKSPACE_VIEWER", loading: false });
 
     renderApp("/admin/settings");
 
     expect(await screen.findByText("Access denied")).toBeInTheDocument();
     expect(screen.getByText(/Current role:/)).toBeInTheDocument();
-    expect(screen.getByText(/WORKSPACE_VIEWER/)).toBeInTheDocument();
+    expect(screen.getByText(/Viewer/)).toBeInTheDocument();
   });
 
   it("shows access denied when a workspace admin opens the users page", async () => {
@@ -79,11 +79,11 @@ describe("App RBAC routes", () => {
       user: { id: "admin-1", email: "admin@example.com", role: "WORKSPACE_ADMIN" },
       loading: false,
     });
-    mocks.useWorkspace.mockReturnValue({ selectedWorkspaceId: "ws-1" });
+    mocks.useWorkspace.mockReturnValue({ selectedWorkspaceId: "ws-1", currentWorkspaceRole: "WORKSPACE_ADMIN", loading: false });
 
     renderApp("/admin/users");
 
     expect(await screen.findByText("Access denied")).toBeInTheDocument();
-    expect(screen.getByText(/SUPER_ADMIN/)).toBeInTheDocument();
+    expect(screen.getByText(/Super Admin/)).toBeInTheDocument();
   });
 });

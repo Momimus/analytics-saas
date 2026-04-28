@@ -1,22 +1,26 @@
 import { useNavigate } from "react-router-dom";
 import Button from "../components/Button";
 import GlassCard from "../components/ui/GlassCard";
+import { platformRoleLabel, workspaceAccessRoleLabel } from "../lib/roles";
 
 type Forbidden403Props = {
   currentRole?: "SUPER_ADMIN" | "WORKSPACE_ADMIN" | "WORKSPACE_VIEWER" | null;
   requiredRoles?: Array<"SUPER_ADMIN" | "WORKSPACE_ADMIN" | "WORKSPACE_VIEWER">;
+  labelMode?: "platform" | "workspace";
 };
 
-export default function Forbidden403Page({ currentRole, requiredRoles }: Forbidden403Props) {
+export default function Forbidden403Page({ currentRole, requiredRoles, labelMode = "workspace" }: Forbidden403Props) {
   const navigate = useNavigate();
-  const requiredLabel = requiredRoles && requiredRoles.length > 0 ? requiredRoles.join(", ") : "Unknown";
+  const labelForRole = labelMode === "platform" ? platformRoleLabel : workspaceAccessRoleLabel;
+  const requiredLabel = requiredRoles && requiredRoles.length > 0 ? requiredRoles.map(labelForRole).join(", ") : "Unknown";
+  const currentRoleLabel = currentRole ? labelForRole(currentRole) : "Unknown";
 
   return (
     <GlassCard title="Access denied" subtitle="You do not have permission to open this page." className="w-full max-w-2xl">
       <div className="grid gap-4">
         <div className="rounded-[var(--radius-md)] border border-[color:var(--border)] bg-[color:var(--surface-strong)]/60 p-3 text-sm text-[var(--text-muted)]">
           <p>
-            Current role: <span className="text-[var(--text)]">{currentRole ?? "Unknown"}</span>
+            Current role: <span className="text-[var(--text)]">{currentRoleLabel}</span>
           </p>
           <p>
             Required role(s): <span className="text-[var(--text)]">{requiredLabel}</span>

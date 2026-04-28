@@ -1,12 +1,18 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { AdminPage, AdminPageHeader } from "../components/admin/AdminPageLayout";
 import Button from "../components/Button";
 import Input from "../components/Input";
 import GlassCard from "../components/ui/GlassCard";
 import Select from "../components/ui/Select";
-import { canManageWorkspace, useAuth } from "../context/auth";
+import { useAuth } from "../context/auth";
 import { useWorkspace } from "../context/workspace";
 import type { ApiError } from "../lib/api";
+import {
+  canManageWorkspaceAccess,
+  isSuperAdmin,
+  workspaceAccessModeLabel,
+  workspaceContextLabel,
+} from "../lib/roles";
 import { createWorkspace, upsertWorkspaceMember } from "../lib/workspaces";
 
 function formatDate(value: string) {
@@ -19,23 +25,22 @@ function formatDate(value: string) {
   }).format(date);
 }
 
-function roleLabel(role: "WORKSPACE_ADMIN" | "WORKSPACE_VIEWER") {
-  return role === "WORKSPACE_ADMIN" ? "Workspace Admin" : "Workspace Viewer";
-}
-
 export default function AdminWorkspacePage() {
   const { user } = useAuth();
   const {
     workspaces,
+    currentWorkspace,
+    currentWorkspaceRole,
     selectedWorkspaceId,
     setSelectedWorkspaceId,
     refreshWorkspaces,
     loading: workspaceLoading,
+    canSwitchWorkspaces,
   } = useWorkspace();
-  const canManageCurrentWorkspace = canManageWorkspace(user);
-  const selectedWorkspace = selectedWorkspaceId
-    ? workspaces.find((workspace) => workspace.id === selectedWorkspaceId) ?? null
-    : null;
+
+  const isPlatformSuperAdmin = isSuperAdmin(user?.role);
+  const canManageCurrentWorkspace = canManageWorkspaceAccess(currentWorkspaceRole);
+  const accessibleWorkspaceCount = isPlatformSuperAdmin ? workspaces.length : currentWorkspace ? 1 : 0;
 
   const [createName, setCreateName] = useState("");
   const [creating, setCreating] = useState(false);
@@ -48,10 +53,10 @@ export default function AdminWorkspacePage() {
   const [memberError, setMemberError] = useState<string | null>(null);
   const [memberSuccess, setMemberSuccess] = useState<string | null>(null);
 
-  const summaryLabel = useMemo(() => {
-    if (!selectedWorkspace) return "No workspace selected";
-    return `${selectedWorkspace.name} � ${roleLabel(selectedWorkspace.role)}`;
-  }, [selectedWorkspace]);
+  const contextLabel = useMemo(() => {
+    if (!currentWorkspace) return "No workspace selected";
+    return `${currentWorkspace.name} · ${workspaceContextLabel(currentWorkspace.role)}`;
+  }, [currentWorkspace]);
 
   async function handleCreateWorkspace() {
     const name = createName.trim();
@@ -78,8 +83,8 @@ export default function AdminWorkspacePage() {
   }
 
   async function handleUpsertMember() {
-    if (!selectedWorkspace) {
-      setMemberError("Select a workspace first.");
+    if (!currentWorkspace) {
+      setMemberError("No workspace is available.");
       return;
     }
 
@@ -93,7 +98,7 @@ export default function AdminWorkspacePage() {
     setMemberError(null);
     setMemberSuccess(null);
     try {
-      await upsertWorkspaceMember(selectedWorkspace.id, {
+      await upsertWorkspaceMember(currentWorkspace.id, {
         email,
         role: memberRole,
       });
@@ -112,32 +117,36 @@ export default function AdminWorkspacePage() {
       <GlassCard>
         <AdminPageHeader
           title="Workspace"
-          subtitle="Manage workspace context, member access, and the current tenant control surface."
+          subtitle="Keep workspace context explicit and keep access semantics aligned with the current tenant."
           compact
         />
 
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <div className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface-alt)] px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ui-text-muted)]">Current Workspace</p>
-            <p className="mt-1 truncate text-base font-semibold tracking-tight text-[var(--ui-text-primary)]">{selectedWorkspace?.name ?? "None selected"}</p>
+            <p className="mt-1 truncate text-base font-semibold tracking-tight text-[var(--ui-text-primary)]">{currentWorkspace?.name ?? "No workspace"}</p>
           </div>
           <div className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--ui-accent-soft)]/35 px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ui-text-muted)]">Your Access</p>
             <p className="mt-1 text-base font-semibold tracking-tight text-[var(--ui-text-primary)]">
-              {selectedWorkspace ? roleLabel(selectedWorkspace.role) : user?.role === "SUPER_ADMIN" ? "Super Admin" : "No workspace"}
+              {currentWorkspaceRole ? workspaceContextLabel(currentWorkspaceRole) : isPlatformSuperAdmin ? "Platform Access" : "No workspace"}
             </p>
           </div>
           <div className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ui-text-muted)]">Accessible Workspaces</p>
-            <p className="mt-1 text-xl font-semibold tracking-tight text-[var(--ui-text-primary)]">{workspaces.length}</p>
+            <p className="mt-1 text-xl font-semibold tracking-tight text-[var(--ui-text-primary)]">{accessibleWorkspaceCount}</p>
           </div>
         </div>
       </GlassCard>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.95fr)]">
         <GlassCard
-          title="Workspace Overview"
-          subtitle="Switch intentionally between tenants and keep role context visible."
+          title={isPlatformSuperAdmin ? "Workspace Overview" : "Workspace Context"}
+          subtitle={
+            isPlatformSuperAdmin
+              ? "Switch intentionally between tenants and keep role context explicit."
+              : "Your account operates inside one assigned workspace context."
+          }
         >
           {workspaceLoading ? (
             <p className="text-sm text-[var(--ui-text-muted)]">Loading workspace context...</p>
@@ -145,7 +154,7 @@ export default function AdminWorkspacePage() {
             <div className="rounded-[var(--ui-radius-md)] border border-dashed border-[color:var(--ui-border-soft)] bg-[color:var(--surface-alt)] px-4 py-5 text-sm text-[var(--ui-text-muted)]">
               No workspaces are available for this account yet.
             </div>
-          ) : (
+          ) : isPlatformSuperAdmin ? (
             <div className="grid gap-3">
               {workspaces.map((workspace) => {
                 const isSelected = workspace.id === selectedWorkspaceId;
@@ -167,7 +176,7 @@ export default function AdminWorkspacePage() {
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-[var(--ui-text-muted)]">
-                          {roleLabel(workspace.role)}
+                          {workspaceContextLabel(workspace.role)}
                         </span>
                         {isSelected ? (
                           <span className="rounded border border-[color:color-mix(in_srgb,var(--accent)_35%,transparent)] bg-[color:var(--surface)] px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-[var(--accent)]">
@@ -183,57 +192,81 @@ export default function AdminWorkspacePage() {
                       </div>
                       <div>
                         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">Context</p>
-                        <p className="mt-1 truncate text-[var(--ui-text-primary)]">{isSelected ? summaryLabel : "Available for switch"}</p>
+                        <p className="mt-1 truncate text-[var(--ui-text-primary)]">{isSelected ? contextLabel : "Available for switch"}</p>
                       </div>
                     </div>
                   </button>
                 );
               })}
             </div>
+          ) : (
+            <div className="grid gap-4">
+              <div className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface)] px-4 py-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-base font-semibold text-[var(--ui-text-primary)]">{currentWorkspace?.name ?? "No workspace"}</p>
+                    <p className="mt-1 text-sm text-[var(--ui-text-secondary)]">{currentWorkspace ? `/${currentWorkspace.slug}` : "Workspace assignment required"}</p>
+                  </div>
+                  <span className="rounded border border-[color:var(--ui-border-soft)] bg-[color:var(--surface-alt)] px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-[var(--ui-text-muted)]">
+                    {currentWorkspaceRole ? workspaceContextLabel(currentWorkspaceRole) : "No access"}
+                  </span>
+                </div>
+              </div>
+              <div className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface-alt)] px-4 py-4 text-sm text-[var(--ui-text-secondary)]">
+                Workspace switching is reserved for super admins. Your session stays bound to the assigned workspace context.
+              </div>
+            </div>
           )}
         </GlassCard>
 
         <div className="grid gap-5">
           <GlassCard title="Workspace Details" subtitle="Basic information for the current tenant.">
-            {selectedWorkspace ? (
+            {currentWorkspace ? (
               <div className="grid gap-4 text-sm sm:grid-cols-2">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">Name</p>
-                  <p className="mt-1 text-[var(--ui-text-primary)]">{selectedWorkspace.name}</p>
+                  <p className="mt-1 text-[var(--ui-text-primary)]">{currentWorkspace.name}</p>
                 </div>
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">Slug</p>
-                  <p className="mt-1 text-[var(--ui-text-primary)]">/{selectedWorkspace.slug}</p>
+                  <p className="mt-1 text-[var(--ui-text-primary)]">/{currentWorkspace.slug}</p>
                 </div>
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">Created</p>
-                  <p className="mt-1 text-[var(--ui-text-primary)]">{formatDate(selectedWorkspace.createdAt)}</p>
+                  <p className="mt-1 text-[var(--ui-text-primary)]">{formatDate(currentWorkspace.createdAt)}</p>
                 </div>
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">Role</p>
-                  <p className="mt-1 text-[var(--ui-text-primary)]">{roleLabel(selectedWorkspace.role)}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--ui-text-muted)]">Access</p>
+                  <p className="mt-1 text-[var(--ui-text-primary)]">{workspaceContextLabel(currentWorkspace.role)}</p>
                 </div>
               </div>
             ) : (
               <div className="rounded-[var(--ui-radius-md)] border border-dashed border-[color:var(--ui-border-soft)] bg-[color:var(--surface-alt)] px-4 py-5 text-sm text-[var(--ui-text-muted)]">
-                Select a workspace to view tenant details.
+                No workspace is currently available for this account.
               </div>
             )}
           </GlassCard>
 
-          <GlassCard title="Permissions" subtitle="Keep member-management capability explicit by role.">
+          <GlassCard title="Permissions" subtitle="Keep read-only and management semantics explicit.">
             <div className="rounded-[var(--ui-radius-md)] border border-[color:var(--ui-border-soft)] bg-[color:var(--surface-alt)] px-4 py-4 text-sm text-[var(--ui-text-secondary)]">
-              {canManageCurrentWorkspace
-                ? "You can manage workspace settings and member access for the current tenant."
+              {isPlatformSuperAdmin
+                ? "You can enter any workspace with platform-level access and manage tenant data without switching your account role."
+                : canManageCurrentWorkspace
+                ? `You can manage this workspace in ${workspaceAccessModeLabel(currentWorkspaceRole)} mode.`
                 : "You have read-only workspace access. Member and settings actions are hidden."}
             </div>
+            {!isPlatformSuperAdmin && !canSwitchWorkspaces ? (
+              <p className="mt-3 text-sm text-[var(--ui-text-muted)]">
+                This account stays in one workspace context and does not expose a workspace switcher.
+              </p>
+            ) : null}
           </GlassCard>
         </div>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
         <GlassCard title="Members" subtitle="Use the existing backend member upsert flow without inventing unsupported directory behavior.">
-          {canManageCurrentWorkspace && selectedWorkspace ? (
+          {canManageCurrentWorkspace && currentWorkspace ? (
             <div className="grid gap-4">
               <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px_auto] md:items-end">
                 <Input
@@ -255,7 +288,7 @@ export default function AdminWorkspacePage() {
                     onChange={(value) => setMemberRole(value as "WORKSPACE_ADMIN" | "WORKSPACE_VIEWER")}
                     ariaLabel="Select member role"
                     items={[
-                      { label: "Workspace Viewer", value: "WORKSPACE_VIEWER" },
+                      { label: "Viewer", value: "WORKSPACE_VIEWER" },
                       { label: "Workspace Admin", value: "WORKSPACE_ADMIN" },
                     ]}
                   />
@@ -273,15 +306,15 @@ export default function AdminWorkspacePage() {
             </div>
           ) : (
             <div className="rounded-[var(--ui-radius-md)] border border-dashed border-[color:var(--ui-border-soft)] bg-[color:var(--surface-alt)] px-4 py-5 text-sm text-[var(--ui-text-muted)]">
-              {selectedWorkspace
-                ? "Workspace member management is available only to workspace-managing roles."
-                : "Select a workspace before managing members."}
+              {currentWorkspace
+                ? "Workspace member management is available only to workspace admins and super admins."
+                : "No workspace is available for member management."}
             </div>
           )}
         </GlassCard>
 
         <GlassCard title="Create Workspace" subtitle="Only shown where the backend already supports workspace creation.">
-          {user?.role === "SUPER_ADMIN" ? (
+          {isPlatformSuperAdmin ? (
             <div className="grid gap-4">
               <Input
                 label="Workspace name"
@@ -303,7 +336,7 @@ export default function AdminWorkspacePage() {
             </div>
           ) : (
             <div className="rounded-[var(--ui-radius-md)] border border-dashed border-[color:var(--ui-border-soft)] bg-[color:var(--surface-alt)] px-4 py-5 text-sm text-[var(--ui-text-muted)]">
-              Workspace creation is not exposed here for your role.
+              Workspace creation is reserved for super admins.
             </div>
           )}
         </GlassCard>

@@ -1,6 +1,5 @@
 import jwt from "jsonwebtoken";
 import request from "supertest";
-import { Prisma } from "@prisma/client";
 
 process.env.NODE_ENV = "test";
 process.env.JWT_SECRET = "test-secret";

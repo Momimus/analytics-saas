@@ -181,4 +181,18 @@ describe("AdminAnalyticsPage", () => {
     });
     expect(await screen.findByText("Total Revenue: $500")).toBeInTheDocument();
   });
+
+  it("does not request analytics data until a workspace is selected", async () => {
+    mocks.useWorkspace.mockReturnValue({ selectedWorkspaceId: null });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(mocks.getOverview).not.toHaveBeenCalled();
+      expect(mocks.getTrends).not.toHaveBeenCalled();
+      expect(mocks.getActivity).not.toHaveBeenCalled();
+      expect(mocks.listAdminProducts).not.toHaveBeenCalled();
+      expect(mocks.listAdminOrders).not.toHaveBeenCalled();
+    });
+  });
 });

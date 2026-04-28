@@ -24,6 +24,31 @@ function renderPage() {
 }
 
 describe("AdminEventsPage", () => {
+  it("keeps the events explorer read-only and does not expose mutation controls", async () => {
+    mocks.getActivity.mockResolvedValue({
+      events: [
+        {
+          id: "evt-1",
+          eventName: "order_created",
+          userId: "user-1",
+          actorLabel: "Admin User",
+          createdAt: "2026-03-28T10:00:00.000Z",
+          productId: "product-12345678",
+          orderId: "order-12345678",
+          metadata: { plan: "pro", total: 49 },
+        },
+      ],
+      nextCursor: null,
+    });
+
+    renderPage();
+
+    expect((await screen.findAllByText("order_created")).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /create event/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /submit/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "View" }).length).toBeGreaterThan(0);
+  });
+
   it("renders events and lets the user inspect metadata", async () => {
     mocks.getActivity.mockResolvedValue({
       events: [

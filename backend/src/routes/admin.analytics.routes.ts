@@ -1,6 +1,11 @@
 import { Prisma, WorkspaceMemberRole } from "@prisma/client";
 import { Router } from "express";
 import prisma from "../lib/prisma.js";
+import {
+  getAnalyticsCachedPayload,
+  invalidateAnalyticsWorkspaceCache,
+  setAnalyticsCachedPayload,
+} from "../services/analyticsCache.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { createRateLimiter } from "../middleware/rateLimit.js";
 import { requireWorkspace, requireWorkspaceRole } from "../middleware/workspace.js";
@@ -13,7 +18,6 @@ const router = Router();
 const IS_PROD = process.env.NODE_ENV === "production";
 const OVERVIEW_CACHE_TTL_MS = 30_000;
 const TRENDS_CACHE_TTL_MS = 60_000;
-const analyticsResponseCache = new Map<string, { expiresAt: number; payload: unknown }>();
 const analyticsLimiter = createRateLimiter({
   windowMs: Number(process.env.ANALYTICS_RATE_LIMIT_WINDOW_MS ?? 60 * 1000),
   max: Number(process.env.ANALYTICS_RATE_LIMIT_MAX ?? 240),
@@ -210,23 +214,6 @@ function logSlowDbQuery(routeName: string, durationMs: number) {
   console.log(`[analytics][slow-query] ${routeName} ${Math.round(durationMs)}ms`);
 }
 
-function getCachedPayload<T>(key: string): T | null {
-  const hit = analyticsResponseCache.get(key);
-  if (!hit) return null;
-  if (hit.expiresAt <= nowMs()) {
-    analyticsResponseCache.delete(key);
-    return null;
-  }
-  return hit.payload as T;
-}
-
-function setCachedPayload(key: string, payload: unknown, ttlMs: number) {
-  analyticsResponseCache.set(key, {
-    payload,
-    expiresAt: nowMs() + ttlMs,
-  });
-}
-
 function escapeLikeSearch(value: string) {
   return value.replace(/[\\%_]/g, "\\$&");
 }
@@ -336,6 +323,8 @@ router.patch(
       ip,
       userAgent,
     });
+
+    invalidateAnalyticsWorkspaceCache(workspaceId);
 
     return res.json({
       settings: {
@@ -525,7 +514,7 @@ router.get(
     const workspaceId = req.workspaceId as string;
     const range = parseRange(req.query.range);
     const cacheKey = `overview:${workspaceId}:${range}`;
-    const cached = getCachedPayload<{
+    const cached = getAnalyticsCachedPayload<{
       revenue: number;
       orders: number;
       activeUsers: number;
@@ -621,7 +610,7 @@ router.get(
       },
     };
 
-    setCachedPayload(cacheKey, payload, OVERVIEW_CACHE_TTL_MS);
+    setAnalyticsCachedPayload(cacheKey, payload, OVERVIEW_CACHE_TTL_MS);
     return res.json(payload);
   })
 );
@@ -634,7 +623,7 @@ router.get(
     const range = parseRange(req.query.range);
     const metric = parseMetric(req.query.metric);
     const cacheKey = `trends:${workspaceId}:${metric}:${range}`;
-    const cached = getCachedPayload<{ labels: string[]; data: number[] }>(cacheKey);
+    const cached = getAnalyticsCachedPayload<{ labels: string[]; data: number[] }>(cacheKey);
     if (cached) {
       return res.json(cached);
     }
@@ -691,7 +680,7 @@ router.get(
 
     const data = labels.map((label) => valueByDay.get(label) ?? 0);
     const payload = { labels, data };
-    setCachedPayload(cacheKey, payload, TRENDS_CACHE_TTL_MS);
+    setAnalyticsCachedPayload(cacheKey, payload, TRENDS_CACHE_TTL_MS);
     return res.json(payload);
   })
 );
@@ -853,6 +842,8 @@ router.delete(
       userAgent,
     });
 
+    invalidateAnalyticsWorkspaceCache(workspaceId);
+
     return res.json({ ok: true });
   })
 );
@@ -910,6 +901,8 @@ router.patch(
       ip,
       userAgent,
     });
+
+    invalidateAnalyticsWorkspaceCache(workspaceId);
 
     return res.json({
       order: {
@@ -973,6 +966,8 @@ router.post(
       ip,
       userAgent,
     });
+
+    invalidateAnalyticsWorkspaceCache(workspaceId);
 
     return res.status(201).json({
       product: {
@@ -1042,6 +1037,8 @@ router.post(
       ip,
       userAgent,
     });
+
+    invalidateAnalyticsWorkspaceCache(workspaceId);
 
     return res.status(201).json({
       order: {
@@ -1127,6 +1124,8 @@ router.post(
       ip,
       userAgent,
     });
+
+    invalidateAnalyticsWorkspaceCache(workspaceId);
 
     return res.status(201).json({ event });
   })

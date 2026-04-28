@@ -11,8 +11,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../../context/auth", () => ({
   useAuth: mocks.useAuth,
-  canManageWorkspace: (user: { role?: string } | null) =>
-    user?.role === "SUPER_ADMIN" || user?.role === "WORKSPACE_ADMIN",
 }));
 
 vi.mock("../../context/workspace", () => ({
@@ -28,7 +26,27 @@ afterEach(() => {
   vi.resetAllMocks();
 });
 
+type MockWorkspace = {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
+  createdByUserId: string;
+  role: "WORKSPACE_ADMIN" | "WORKSPACE_VIEWER";
+};
+
 function baseWorkspaceState(overrides: Record<string, unknown> = {}) {
+  const currentWorkspace: MockWorkspace | null =
+    overrides.currentWorkspace === undefined
+      ? {
+          id: "ws-1",
+          name: "Northwind",
+          slug: "northwind",
+          createdAt: "2026-03-10T00:00:00.000Z",
+          createdByUserId: "user-1",
+          role: "WORKSPACE_ADMIN" as const,
+        }
+      : (overrides.currentWorkspace as MockWorkspace | null);
   return {
     workspaces: [
       {
@@ -48,10 +66,13 @@ function baseWorkspaceState(overrides: Record<string, unknown> = {}) {
         role: "WORKSPACE_VIEWER" as const,
       },
     ],
+    currentWorkspace,
+    currentWorkspaceRole: currentWorkspace ? currentWorkspace.role : null,
     selectedWorkspaceId: "ws-1",
     setSelectedWorkspaceId: vi.fn(),
     refreshWorkspaces: vi.fn().mockResolvedValue(undefined),
     loading: false,
+    canSwitchWorkspaces: false,
     ...overrides,
   };
 }
@@ -63,18 +84,27 @@ describe("AdminWorkspacePage", () => {
     });
     mocks.useWorkspace.mockReturnValue(
       baseWorkspaceState({
+        currentWorkspace: {
+          id: "ws-2",
+          name: "Acme",
+          slug: "acme",
+          createdAt: "2026-03-11T00:00:00.000Z",
+          createdByUserId: "user-2",
+          role: "WORKSPACE_VIEWER" as const,
+        },
+        currentWorkspaceRole: "WORKSPACE_VIEWER",
         selectedWorkspaceId: "ws-2",
       })
     );
 
     render(<AdminWorkspacePage />);
 
-    expect(screen.getByText("Workspace Overview")).toBeInTheDocument();
+    expect(screen.getByText("Workspace Context")).toBeInTheDocument();
     expect(screen.getAllByText("Acme").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Workspace Viewer").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Viewer").length).toBeGreaterThan(0);
     expect(screen.getByText("You have read-only workspace access. Member and settings actions are hidden.")).toBeInTheDocument();
-    expect(screen.getByText("Workspace member management is available only to workspace-managing roles.")).toBeInTheDocument();
-    expect(screen.getByText("Workspace creation is not exposed here for your role.")).toBeInTheDocument();
+    expect(screen.getByText("Workspace member management is available only to workspace admins and super admins.")).toBeInTheDocument();
+    expect(screen.getByText("Workspace creation is reserved for super admins.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add or update member" })).not.toBeInTheDocument();
   });
 
@@ -121,6 +151,8 @@ describe("AdminWorkspacePage", () => {
       baseWorkspaceState({
         refreshWorkspaces,
         setSelectedWorkspaceId,
+        currentWorkspaceRole: "SUPER_ADMIN",
+        canSwitchWorkspaces: true,
       })
     );
     mocks.createWorkspace.mockResolvedValue({
@@ -155,15 +187,18 @@ describe("AdminWorkspacePage", () => {
     mocks.useWorkspace.mockReturnValue(
       baseWorkspaceState({
         workspaces: [],
+        currentWorkspace: null,
+        currentWorkspaceRole: null,
         selectedWorkspaceId: null,
+        canSwitchWorkspaces: true,
       })
     );
 
     render(<AdminWorkspacePage />);
 
     expect(screen.getByText("No workspaces are available for this account yet.")).toBeInTheDocument();
-    expect(screen.getByText("Select a workspace to view tenant details.")).toBeInTheDocument();
-    expect(screen.getByText("Select a workspace before managing members.")).toBeInTheDocument();
+    expect(screen.getByText("No workspace is currently available for this account.")).toBeInTheDocument();
+    expect(screen.getByText("No workspace is available for member management.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create workspace" })).toBeInTheDocument();
   });
 });
